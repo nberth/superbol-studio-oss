@@ -11,3 +11,4 @@ _out/
 !LICENSE.md
 !package.json
 !astexplorer/dist/index.html
+!superbol-schema.json

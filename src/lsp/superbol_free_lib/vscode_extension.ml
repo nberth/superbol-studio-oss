@@ -399,6 +399,11 @@ let contributes =
         ~title:"Restart Language Server"
         ~category:"SuperBOL"
     ]
+    ~tomlValidation: [
+      Manifest.tomlValidation
+        ~fileMatch:"superbol.toml"
+        ~url:"https://raw.githubusercontent.com/nberth/superbol-studio-oss/toml-validation/superbol-schema.json";
+    ]
 
 let manifest =
   Manifest.vscode
@@ -408,5 +413,11 @@ let manifest =
     ~activationEvents: [
       "onLanguage:cobol";
       "onDebug";
+    ]
+    ~extensionKind: [
+      "workspace";                                 (* <- run on the workspace *)
+    ]
+    ~extensionDependencies: [
+      "tamasfe.even-better-toml";              (* for editing `superbol.toml` *)
     ]
     ~contributes
