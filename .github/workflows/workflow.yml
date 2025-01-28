@@ -39,18 +39,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
+        uses: avsm/setup-ocaml@v3
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          opam-pin: false
+
+      - run: opam --version
+      - run: env
+
       - name: Retrieve opam cache
         uses: actions/cache@v4
         id: cache-opam
         with:
           path: ~/.opam
           key: v4-${{ runner.os }}-superbol-studio-oss-${{ matrix.ocaml-compiler }}-${{ hashFiles('opam/*.opam') }}-skip_tests=${{ matrix.skip_test }}-repo=
-
-      - name: Use OCaml ${{ matrix.ocaml-compiler }}
-        uses: avsm/setup-ocaml@v3
-        with:
-          ocaml-compiler: ${{ matrix.ocaml-compiler }}
-          opam-pin: false
 
       - name: Set git user
         run: |
@@ -122,6 +125,17 @@ jobs:
           path: superbol-vscode-platform-*.vsix
           compression-level: 0 # no compression (already a zip archive)
         if: matrix.build_vsix
+
+      - run: make vsix-debug TARGET_PLAT=web
+        if: ${{ matrix.build_vsix && matrix.os == 'ubuntu-latest' }}
+
+      - name: Upload universal VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSIX-web
+          path: superbol-vscode-platform-*-web-*.vsix
+          compression-level: 0 # no compression (already a zip archive)
+        if: ${{ matrix.build_vsix && matrix.os == 'ubuntu-latest' }}
 
       # - name: Check whether source is well formatted
       #   run: make fmt
