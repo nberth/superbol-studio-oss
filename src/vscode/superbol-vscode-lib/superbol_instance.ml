@@ -106,13 +106,23 @@ module JSON = struct
 
 end
 
+let active_text_editor ?text_editor () =
+  match text_editor with None -> Vscode.Window.activeTextEditor () | e -> e
+
+let current_document ?text_editor () =
+  match active_text_editor ?text_editor () with
+  | None -> None
+  | Some e -> Some (Vscode.TextEditor.document e)
 
 let current_document_uri ?text_editor () =
-  match
-    match text_editor with None -> Vscode.Window.activeTextEditor () | e -> e
-  with
+  match current_document ?text_editor () with
   | None -> None
-  | Some e -> Some (Vscode.TextDocument.uri @@ Vscode.TextEditor.document e)
+  | Some doc -> Some (Vscode.TextDocument.uri doc)
+
+let current_selections ?text_editor () =
+  match active_text_editor ?text_editor () with
+  | None -> None
+  | Some e -> Some (Vscode.TextEditor.selections e)
 
 let write_project_config_for ?uri client =
   let assoc = match uri with
@@ -125,6 +135,21 @@ let write_project_config_for ?uri client =
     ~meth:"superbol/writeProjectConfiguration"
     ~data:(Jsonoo.Encode.object_ assoc) |>
   Promise.(then_ ~fulfilled:(fun _ -> return ()))
+(* ======= *)
+
+(* let write_project_config ?text_editor instance = *)
+(*   let write_project_config_for ?uri client = *)
+(*     let assoc = match uri with *)
+(*       | Some uri -> *)
+(*           ["uri", Jsonoo.Encode.string @@ Vscode.Uri.toString uri ()] *)
+(*       | None -> *)
+(*           [] (\* send without URI: the server will consider every known folder *\) *)
+(*     in *)
+(*     Vscode_languageclient.LanguageClient.sendRequest client () *)
+(*       ~meth:"superbol/writeProjectConfiguration" *)
+(*       ~data:(Jsonoo.Encode.object_ assoc) |> *)
+(*     Promise.(then_ ~fulfilled:(fun _ -> return ())) *)
+(* >>>>>>> 0b1ff6e27 (Draft basis for superbol/editionsToToggleComments LSP request):src/vscode/superbol-vscode-platform/superbol_instance.ml *)
 
 let with_context_and_client ~f instance =
   match client instance with
@@ -158,8 +183,8 @@ let lsp_notification ~meth ~data instance =
       Vscode_languageclient.LanguageClient.sendNotification client meth
         (Jsonoo.t_to_js data)
 
-let get_project_config instance =
-  match Vscode.Window.activeTextEditor () with
+let get_project_config ?text_editor instance =
+  match active_text_editor ?text_editor () with
   | None ->
       Promise.return @@ Error No_active_text_editor
   | Some text_editor ->
@@ -167,3 +192,35 @@ let get_project_config instance =
         ~meth:"superbol/getProjectConfiguration"
         ~data:(JSON.current_text_document_id text_editor) |>
       Promise.Result.map Jsonoo.Decode.(dict id)
+
+let toggle_comments ?text_editor instance =
+  (* match active_text_editor ?text_editor () with *)
+  match client instance, current_document_uri (), current_selections ?text_editor () with
+  | None, _, _ ->
+      Promise.return (* @@ Error "SuperBOL client is not running" *)()
+  | _, None, _ ->
+      Promise.return (* @@ Error "Found no active text editor" *)()
+  | _, _, None ->
+      Promise.(then_  ~fulfilled:(fun _ -> return ())) @@
+      Vscode.Window.showErrorMessage ()
+        ~message:"No selection in text editor"
+  | Some client, Some uri, Some selections ->
+      let jsposition pos =
+        Jsonoo.Encode.(object_ [
+            "character", int (Vscode.Position.character pos);
+            "line", int (Vscode.Position.line pos);
+          ])
+      in
+      let jsselection s =
+        Jsonoo.Encode.object_ [
+          "start", jsposition (Vscode.Selection.start s);
+          "end", jsposition (Vscode.Selection.end_ s);
+        ]
+      in
+      Vscode_languageclient.LanguageClient.sendRequest client ()
+        ~meth:"superbol/toggleComments"
+        ~data:(Jsonoo.Encode.(object_ [
+            "uri", string @@ Vscode.Uri.toString uri ();
+            "selectionRanges", list jsselection selections
+          ])) |>
+      Promise.(then_ ~fulfilled:(fun _ -> return ()))

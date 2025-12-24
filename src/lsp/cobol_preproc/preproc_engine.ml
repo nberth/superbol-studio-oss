@@ -174,11 +174,13 @@ let preprocessor input = function
       let module Pp = Preproc_grammar.Make (Config) (Om) in
       let source_format = source_format_config source_format in
       let tab_stops = Config.tab_stops#value in
+      let reader = Src_reader.from input ?source_format ~platform ~tab_stops in
+      let initial_source_format = Src_reader.source_format reader in
       {
         buff = [];
-        reader = Src_reader.from input ?source_format ~platform ~tab_stops;
+        reader;
         ppstate = Preproc_state.initial;
-        pplog = Preproc_trace.empty;
+        pplog = Preproc_trace.empty ~initial_source_format;
         diags = Preproc_diagnostics.none;
         env;
         context = Preproc_logic.empty_context;

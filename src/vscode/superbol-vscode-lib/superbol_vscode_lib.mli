@@ -30,3 +30,11 @@ module Printer = Superbol_printer
 module Instance = Superbol_instance
 module Config = Superbol_config
 module Extension = Superbol_extension
+
+(* val toggle_comments *)
+(*   : t *)
+(*   -> unit Promise.t *)
+
+(* val get_project_config *)
+(*   : t *)
+(*   -> ((string, Jsonoo.t) Hashtbl.t, string) result Promise.t *)

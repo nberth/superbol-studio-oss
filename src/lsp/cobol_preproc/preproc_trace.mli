@@ -74,7 +74,9 @@ include module type of TYPES
    and type log_entry = TYPES.log_entry
    and type log = TYPES.log
 
-val empty: log
+val empty
+  : initial_source_format: Src_format.any
+  -> log
 val append
   : log_entry
   -> log -> log
@@ -126,6 +128,7 @@ val var_eval
 
 (* --- *)
 
+val initial_source_format: log -> Src_format.any
 val events: log -> log_entry list
 
 (** Fold in any order *)

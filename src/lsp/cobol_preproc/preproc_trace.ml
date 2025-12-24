@@ -70,42 +70,51 @@ module TYPES = struct
     | CyclicCopy of string
     | MissingCopy of Cobol_common.Copybook.TYPES.lookup_error
 
-  type log = log_entry list
+  type log =
+    {
+      rev_entries: log_entry list;
+      initial_source_format: Src_format.any;
+    }
 end
 include TYPES
 
 (* --- *)
 
-let empty = []
-let append =
-  List.cons
+let empty ~initial_source_format =
+  {
+    rev_entries = [];
+    initial_source_format;
+  }
+let append event log =
+  { log with rev_entries = List.cons event log.rev_entries }
 let append_entries: log_entry list -> log -> log = fun entries log ->
   List.fold_left (fun log e -> append e log) log entries
 let new_compdir ~loc ~compdir : log -> log =
-  List.cons @@ CompilerDirective { compdir; loc }
+  append @@ CompilerDirective { compdir; loc }
 let copy_done ~loc ~filename : log -> log =
-  List.cons @@ FileCopy { copyloc = loc; status = CopyDone filename }
+  append @@ FileCopy { copyloc = loc; status = CopyDone filename }
 let cyclic_copy ~loc ~filename : log -> log =
-  List.cons @@ FileCopy { copyloc = loc; status = CyclicCopy filename }
+  append @@ FileCopy { copyloc = loc; status = CyclicCopy filename }
 let missing_copy ~loc ~error : log -> log =
-  List.cons @@ FileCopy { copyloc = loc; status = MissingCopy error }
+  append @@ FileCopy { copyloc = loc; status = MissingCopy error }
 let new_replace ~loc : log -> log =
-  List.cons @@ Replace { replloc = loc }
+  append @@ Replace { replloc = loc }
 let exec_block ~preamble_loc ?postamble_loc text : log -> log =
-  List.cons @@ Exec_block { preamble_loc; text; postamble_loc }
+  append @@ Exec_block { preamble_loc; text; postamble_loc }
 let ignored text : log -> log =
   let ignored_loc = Option.get @@ Cobol_common.Srcloc.concat_locs text in
-  List.cons @@ Ignored { text; ignored_loc }
+  append @@ Ignored { text; ignored_loc }
 let var_def ~loc ~var ~def : log -> log =
-  List.cons @@ Variable_definition { loc; var; def }
+  append @@ Variable_definition { loc; var; def }
 let compvar_subst ~loc ~var ~def : log -> log =
-  List.cons @@ Variable_substitution { loc; var; def }
+  append @@ Variable_substitution { loc; var; def }
 let var_eval ~loc ~var ?def : log -> log =
-  List.cons @@ Variable_evaluation { loc; var; def }
+  append @@ Variable_evaluation { loc; var; def }
 
 (* --- *)
 
-let events: log -> log_entry list = List.rev
+let initial_source_format log = log.initial_source_format
+let events: log -> log_entry list = fun log -> List.rev log.rev_entries
 
 let fold: f:_ -> log -> 'a -> 'a = fun ~f log acc ->
-  List.fold_left (fun acc e -> f e acc) acc log
+  List.fold_left (fun acc e -> f e acc) acc log.rev_entries

@@ -53,7 +53,7 @@ val default_tab_stops: int list
 val next_tab_stop: ?tab_stops:int list -> int -> int
 
 val from_config: Cobol_config.source_format -> any
-(* val to_config: 'k source_format -> Cobol_config.source_format *)
+val to_config: any -> Cobol_config.source_format
 
 (** May raise {!INVALID_SOURCE_FORMAT}. *)
 val decypher: dialect: Cobol_config.dialect -> string -> any

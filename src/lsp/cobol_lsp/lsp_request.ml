@@ -148,30 +148,95 @@ let handle_shutdown registry =
 let assoc_of_jsonrpc_struct params =
   Yojson.Safe.Util.to_assoc @@ Jsonrpc.Structured.yojson_of_t params
 
-
-let handle_write_project_config_command param registry =
+let with_optional_uri ~f params =
   try
-    let uri = match List.assoc_opt "uri" @@ assoc_of_jsonrpc_struct param with
+    let uri = match List.assoc_opt "uri" @@ assoc_of_jsonrpc_struct params with
       | Some uri -> Some (Lsp.Uri.t_of_yojson uri)
       | None -> None
     in
-    let registry = Lsp_server.on_write_project_config_command ?uri registry in
-    Ok (`Null, Running registry)
+    f ?uri params
   with Yojson.Safe.Util.(Type_error _ | Undefined _) ->
     Lsp_error.invalid_params "param = %s (association list with \"uri\" key \
-                              expected)" Yojson.Safe.(to_string (param :> t))
+                              mapping to a valid URI expected)\
+                             " Yojson.Safe.(to_string (params :> t))
 
-
-let handle_get_project_config_command param registry =
+let with_uri ~f params =
   try
-    let assoc = assoc_of_jsonrpc_struct param in
+    let assoc = assoc_of_jsonrpc_struct params in
     let uri = Lsp.Uri.t_of_yojson (List.assoc "uri" assoc) in
+    f ~uri assoc
+  with Yojson.Safe.Util.(Type_error _ | Undefined _) | Not_found ->
+    Lsp_error.invalid_params "param = %s (association list with \"uri\" key \
+                              expected)" Yojson.Safe.(to_string (params :> t))
+
+let handle_write_project_config_command registry =
+  with_optional_uri ~f:begin fun ?uri _params ->
+    let registry = Lsp_server.on_write_project_config_command ?uri registry in
+    Ok (`Null, Running registry)
+  end
+
+let handle_get_project_config_command registry =
+  with_uri ~f:begin fun ~uri _params ->
     let reply = Lsp_server.get_project_config_command uri registry in
     Lsp_io.log_debug "Reply: %a" (Yojson.Safe.pretty_print ~std:false) reply;
     Ok (reply, Running registry)
-  with Yojson.Safe.Util.(Type_error _ | Undefined _) | Not_found ->
-    Lsp_error.invalid_params "param = %s (association list with \"uri\" key \
-                              expected)" Yojson.Safe.(to_string (param :> t))
+  end
+
+let handle_toggle_comments registry params : Yojson.Safe.t =
+  with_uri params ~f:begin fun ~uri params ->
+    let text_doc = TextDocumentIdentifier.create ~uri in
+    (* List.iter begin fun (k, json) -> *)
+    (*   Lsp_io.log_info "%S => @[%S@]" k Yojson.Safe.(to_string (json :> t)); *)
+    (*   (\* if k == "selectionRanges" then begin *\) *)
+    (*   (\*   Yojson.Safe.Util.convert_each Lsp.Types.Range.t_of_yojson json *\) *)
+    (*   (\* end *\) *)
+    (* end params; *)
+    let ranges =
+      Yojson.Safe.Util.(convert_each Lsp.Types.Range.t_of_yojson @@
+                        List.assoc "selectionRanges" params) (* TODO: check missing *)
+    in
+    List.iter begin fun range ->
+      Lsp_io.log_info "range: %S" Yojson.Safe.(to_string @@ Lsp.Types.Range.yojson_of_t range);
+    end ranges;
+    (* let params = Jsonrpc.Structured.yojson_of_t params in *)
+    (* let uri, name, options = Yojson.Safe.Util.( *)
+    (*     to_string @@ member "uri" params, *)
+    (*     to_string @@ member "name" params, *)
+    (*     try to_assoc @@ member "render_options" params with Type_error _ -> []) *)
+    (* in *)
+    try_with_doc registry text_doc ~f:begin fun ~doc ->
+      let initial =
+        Cobol_preproc.Trace.initial_source_format
+          doc.Lsp_document.TYPES.artifacts.pplog
+      in
+      let filename = Lsp.Uri.to_path (Lsp.Text_document.documentUri doc.textdoc) in
+      Lsp_io.log_info "filename = %S" filename;
+      let loc_line loc =
+        try           (* Some locations in the pre-processor log may not involve
+                         [filename], so we need to catch those cases. *)
+          Some (Cobol_common.Srcloc.start_pos_in ~filename loc).pos_lnum
+        with Invalid_argument _ -> None
+      and format_name: Cobol_preproc.Src_format.any -> string = fun f ->
+        let config = Cobol_preproc.Src_format.to_config f in
+        Cobol_config.Options.string_of_format (SF config)
+      in
+      let format_changes =
+        List.rev @@
+        List.fold_left begin fun acc -> function
+          | Cobol_preproc.Trace.CompilerDirective { compdir = CDir_source_format f; loc } ->
+              (match loc_line loc with None -> acc | Some e ->
+                  (* (`List [ `Int e; `String (format_name f.payload)] :: acc)) *)
+                  (`List [ `Int e; `String (format_name f.payload)] :: acc))
+          | _ ->
+              acc
+        end [] (Cobol_preproc.Trace.events doc.artifacts.pplog)
+      in
+      let format_changes = (`List [ `Int 0; `String (format_name initial) ]) :: format_changes in
+      Lsp_io.log_info "Reply: %a" (Yojson.Safe.pretty_print ~std:false) (`List format_changes);
+      Some ((`List format_changes) :> Yojson.Safe.t)
+      (* None *)
+    end |> Option.get
+  end
 
 let handle_get_cfg registry params =
   let params = Jsonrpc.Structured.yojson_of_t params in
@@ -183,9 +248,8 @@ let handle_get_cfg registry params =
   let textDoc = TextDocumentIdentifier.create ~uri in
   try_with_checked_doc registry textDoc
     ~f:begin fun ~doc:_ checked_doc ->
-      let jsoono =
-        Lsp_cfg.doc_to_cfg_jsoono ~filename:(DocumentUri.to_path uri) ~name ~options checked_doc
-      in Some jsoono
+      Option.some @@
+      Lsp_cfg.doc_to_cfg_jsoono ~filename:(DocumentUri.to_path uri) ~name ~options checked_doc
     end |>
   Option.get
 
@@ -952,10 +1016,10 @@ let on_request
         Ok (handle_rename registry params, state)
     | UnknownRequest { meth = "superbol/writeProjectConfiguration";
                        params = Some param } ->
-        handle_write_project_config_command param registry
+        handle_write_project_config_command registry param
     | UnknownRequest { meth = "superbol/getProjectConfiguration";
                        params = Some param } ->
-        handle_get_project_config_command param registry
+        handle_get_project_config_command registry param
     | UnknownRequest { meth = "superbol/getCFG";
                        params = Some param } ->
         Ok (handle_get_cfg registry param, state)
@@ -965,6 +1029,12 @@ let on_request
     | UnknownRequest { meth = "superbol/findProcedure";
                        params = Some param } ->
         Ok (handle_find_procedure registry param, state)
+    | UnknownRequest { meth = "superbol/toggleComments";
+                       params = Some param } ->
+        Ok (handle_toggle_comments registry param, state)
+    | UnknownRequest { meth; _ } ->
+        Lsp_debug.message "Lsp_request: unknown request (%s)" meth;
+        Error (UnknownRequest meth)
     | TextDocumentDeclaration  (* TextDocumentPositionParams.t.t *) _
     | TextDocumentTypeDefinition  (* TypeDefinitionParams.t.t *) _
     | TextDocumentImplementation  (* ImplementationParams.t.t *) _
@@ -996,8 +1066,9 @@ let on_request
     | WillCreateFiles  (* CreateFilesParams.t.t *) _
     | WillDeleteFiles  (* DeleteFilesParams.t.t *) _
     | WillRenameFiles  (* RenameFilesParams.t.t *) _
-    | _ ->
-        fallback client_req
+      ->
+        Lsp_debug.message "Lsp_request: unhandled request";
+        Error (UnhandledRequest client_req)
 
 let handle ?(alternate_handlers = []) (Jsonrpc.Request.{ id; _ } as req) state =
   match Lsp.Client_request.of_jsonrpc req with

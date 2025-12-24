@@ -36,6 +36,11 @@
         "category": "SuperBOL"
       },
       {
+        "command": "superbol.toggleComments",
+        "title": "Toggle Comments",
+        "category": "SuperBOL"
+      },
+      {
         "command": "superbol.coverage.show",
         "title": "Show Coverage",
         "category": "SuperBOL"

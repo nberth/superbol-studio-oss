@@ -621,6 +621,10 @@ let commands =
       ~title:"Retrieve Copybook Directories"
       ~category:"SuperBOL";
     Manifest.command ()
+      ~command:"superbol.toggleComments"
+      ~title:"Toggle Comments"
+      ~category:"SuperBOL";
+    Manifest.command ()
       ~command:"superbol.coverage.show"
       ~title:"Show Coverage"
       ~category:"SuperBOL";

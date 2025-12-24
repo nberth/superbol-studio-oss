@@ -97,11 +97,17 @@ let rewindable_parse ({ project; textdoc; _ } as doc) =
     ~filename:(Lsp.Uri.to_path (uri doc)) @@
   Lsp.Text_document.text textdoc
 
-let no_artifacts =
-  Cobol_parser.Outputs.{ tokens = lazy [];
-                         pplog = Cobol_preproc.Trace.empty;
-                         rev_comments = StringMap.empty;
-                         rev_ignored = [] }
+let no_artifacts ~(project: project) =
+  let initial_source_format =
+    Cobol_preproc.Src_format.from_config @@
+    (match project.config.source_format with SF sf -> sf | Auto -> SFFree)
+  in
+  Cobol_parser.Outputs.{
+    tokens = lazy [];
+    pplog = Cobol_preproc.Trace.empty ~initial_source_format;
+    rev_comments = StringMap.empty;
+    rev_ignored = [];
+  }
 
 let check doc ptree =
   let module Config = (val doc.project.config.cobol_config) in
@@ -128,18 +134,21 @@ let check doc ptree =
              rewinder = Some rewinder;
              checked = Some checked; }
 
-let parse_and_analyze ({ copybook; _ } as doc) =
+let parse_and_analyze ({ project; copybook; _ } as doc) =
   if copybook then                                                    (* skip *)
-    { doc with artifacts = no_artifacts; rewinder = None; checked = None }
+    { doc with artifacts = no_artifacts ~project;
+               rewinder = None; checked = None }
   else
     check doc @@ rewindable_parse doc
 
-let reparse_and_analyze ?position ({ copybook; rewinder; textdoc; _ } as doc) =
+let reparse_and_analyze ?position ({ project; copybook; rewinder;
+                                     textdoc; _ } as doc) =
   match position, rewinder with
   | None, _ | _, None ->
       parse_and_analyze doc
   | _, Some _ when copybook ->                                         (* skip *)
-      { doc with artifacts = no_artifacts; rewinder = None; checked = None }
+      { doc with artifacts = no_artifacts ~project;
+                 rewinder = None; checked = None }
   | Some position, Some rewinder ->
       check doc @@
       Cobol_parser.rewind_and_parse rewinder ~position @@ fun ~last_pp:_ ->
@@ -189,7 +198,7 @@ let blank ~project textdoc =
   {
     project;
     textdoc;
-    artifacts = no_artifacts;
+    artifacts = no_artifacts ~project;
     rewinder = None;
     parsing_diags = Cobol_parser.Diagnostics.ALL.none;
     typecking_diags = Cobol_typeck.Diagnostics.none;
