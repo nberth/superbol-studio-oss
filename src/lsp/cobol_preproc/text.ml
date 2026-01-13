@@ -167,3 +167,10 @@ let map_pseudowords ~f : pseudotext -> pseudotext =
         PseudoWord (map_pseudoword_items w) &@ loc
     | x -> x
   end
+
+(* --- *)
+
+(** {2 Comment inspection} *)
+
+let comment_range { comment_loc = (start, end_); _ } =
+  start.Lexing.pos_lnum, end_.Lexing.pos_lnum

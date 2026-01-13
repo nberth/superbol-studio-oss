@@ -182,61 +182,147 @@ let handle_get_project_config_command registry =
     Ok (reply, Running registry)
   end
 
+(* --- *)
+
+let format_changes (doc: Lsp_document.t) =
+  let filename = Lsp.Uri.to_path (Lsp.Text_document.documentUri doc.textdoc) in
+  let loc_line loc =
+    try               (* Some locations in the pre-processor log may not involve
+                         [filename], so we need to catch those cases. *)
+      Some (Cobol_common.Srcloc.start_pos_in ~filename loc).pos_lnum
+    with Invalid_argument _ -> None
+  in
+  List.cons (0, Cobol_preproc.Trace.initial_source_format doc.artifacts.pplog) @@
+  List.rev @@
+  List.fold_left begin fun acc -> function
+    | Cobol_preproc.Trace.CompilerDirective { compdir = CDir_source_format f; loc } ->
+        (match loc_line loc with None -> acc | Some e -> (e, f.payload) :: acc)
+    | _ ->
+        acc
+  end [] (Cobol_preproc.Trace.events doc.artifacts.pplog)
+
+let comment_ranges ~filename (doc: Lsp_document.t) =
+  let rev_comments = StringMap.find filename doc.artifacts.rev_comments in
+  List.rev_map Cobol_preproc.Text.comment_range rev_comments
+
+let toggle_comment_editions (doc: Lsp_document.t) ranges =
+  let filename = Lsp.Uri.to_path (Lsp.Text_document.documentUri doc.textdoc) in
+  let open struct
+    type acc =
+      {
+        current_format: Cobol_preproc.Src_format.any;
+        rem_ranges: Lsp.Types.Range.t list;
+        rem_comment_ranges: (* Cobol_preproc.Text.comments *)(int * int) list; (*lines only for now *)
+      }
+  end in
+  Cobol_preproc.fold_source_lines
+    ~dialect:(Cobol_config.dialect doc.project.config.cobol_config)
+    ~source_format:doc.project.config.source_format
+    ~on_compiler_directive:begin fun _ compdir acc ->
+      match compdir.payload with
+      | CDir_source_format f -> { acc with current_format = f.payload }
+      | _ -> acc
+    end
+    ~f:begin fun lnum text acc ->
+      let lnum = pred lnum in      (* follow LSP convention (first line is 0) *)
+      let toggle, acc =
+        match acc.rem_ranges with
+        | [] ->
+            false, acc
+        | Lsp.Types.Range.{ start = { line = start_line; _ }; _ } :: _
+          when lnum < start_line ->                 (* not in range: skip line *)
+            false, acc
+        | Lsp.Types.Range.{ end_ = { line = end_line; _ }; _ } :: rem_ranges ->
+            (* skipped range; assume lnum < start of next range *)
+            lnum <= end_line, { acc with rem_ranges }
+      in
+      Lsp_io.log_info "line %i? (empty = %B, toggle = %B, format = %S)"
+        (lnum + 1) (text = []) toggle
+        (let sf = Cobol_preproc.Src_format.to_config acc.current_format in
+         Cobol_config.Options.string_of_format (SF sf));
+      if not toggle
+      then acc
+      else begin
+        let rec comment_status acc =
+          match acc.rem_comment_ranges with
+          | (s, e) :: _  when s <= lnum && lnum <= e -> true, acc
+          | (_, e) :: tl when lnum > e -> comment_status { acc with rem_comment_ranges = tl }
+          | [] | _ :: _ -> false, acc
+        in
+        let has_comment, acc = comment_status acc in
+        Lsp_io.log_info "toggle at line %i (has comment = %B)" lnum has_comment;
+        match acc.current_format with
+        | SF (FixedIndic, _) -> acc
+        | _ -> acc
+      end
+    end
+    (Cobol_preproc.Input.string ~filename @@ Lsp.Text_document.text doc.textdoc)
+    { current_format = Cobol_preproc.Trace.initial_source_format doc.artifacts.pplog;
+      rem_ranges = ranges;
+      rem_comment_ranges = comment_ranges ~filename doc } |>
+  fun _ -> []                                        (* TODO: take edit list out *)
+
+(** Returns editions that toggle comments on selected lines. *)
 let handle_toggle_comments registry params : Yojson.Safe.t =
   with_uri params ~f:begin fun ~uri params ->
     let text_doc = TextDocumentIdentifier.create ~uri in
-    (* List.iter begin fun (k, json) -> *)
-    (*   Lsp_io.log_info "%S => @[%S@]" k Yojson.Safe.(to_string (json :> t)); *)
-    (*   (\* if k == "selectionRanges" then begin *\) *)
-    (*   (\*   Yojson.Safe.Util.convert_each Lsp.Types.Range.t_of_yojson json *\) *)
-    (*   (\* end *\) *)
-    (* end params; *)
     let ranges =
-      Yojson.Safe.Util.(convert_each Lsp.Types.Range.t_of_yojson @@
-                        List.assoc "selectionRanges" params) (* TODO: check missing *)
+      Yojson.Safe.Util.convert_each Lsp.Types.Range.t_of_yojson @@
+      List.assoc "selectionRanges" params              (* TODO: check missing *)
     in
     List.iter begin fun range ->
       Lsp_io.log_info "range: %S" Yojson.Safe.(to_string @@ Lsp.Types.Range.yojson_of_t range);
     end ranges;
-    (* let params = Jsonrpc.Structured.yojson_of_t params in *)
-    (* let uri, name, options = Yojson.Safe.Util.( *)
-    (*     to_string @@ member "uri" params, *)
-    (*     to_string @@ member "name" params, *)
-    (*     try to_assoc @@ member "render_options" params with Type_error _ -> []) *)
-    (* in *)
+(* <<<<<<< HEAD *)
+(*     (\* let params = Jsonrpc.Structured.yojson_of_t params in *\) *)
+(*     (\* let uri, name, options = Yojson.Safe.Util.( *\) *)
+(*     (\*     to_string @@ member "uri" params, *\) *)
+(*     (\*     to_string @@ member "name" params, *\) *)
+(*     (\*     try to_assoc @@ member "render_options" params with Type_error _ -> []) *\) *)
+(*     (\* in *\) *)
+(*     try_with_doc registry text_doc ~f:begin fun ~doc -> *)
+(*       let initial = *)
+(*         Cobol_preproc.Trace.initial_source_format *)
+(*           doc.Lsp_document.TYPES.artifacts.pplog *)
+(*       in *)
+(*       let filename = Lsp.Uri.to_path (Lsp.Text_document.documentUri doc.textdoc) in *)
+(*       Lsp_io.log_info "filename = %S" filename; *)
+(*       let loc_line loc = *)
+(*         try           (\* Some locations in the pre-processor log may not involve *)
+(*                          [filename], so we need to catch those cases. *\) *)
+(*           Some (Cobol_common.Srcloc.start_pos_in ~filename loc).pos_lnum *)
+(*         with Invalid_argument _ -> None *)
+(*       and format_name: Cobol_preproc.Src_format.any -> string = fun f -> *)
+(*         let config = Cobol_preproc.Src_format.to_config f in *)
+(*         Cobol_config.Options.string_of_format (SF config) *)
+(*       in *)
+(*       let format_changes = *)
+(*         List.rev @@ *)
+(*         List.fold_left begin fun acc -> function *)
+(*           | Cobol_preproc.Trace.CompilerDirective { compdir = CDir_source_format f; loc } -> *)
+(*               (match loc_line loc with None -> acc | Some e -> *)
+(*                   (\* (`List [ `Int e; `String (format_name f.payload)] :: acc)) *\) *)
+(*                   (`List [ `Int e; `String (format_name f.payload)] :: acc)) *)
+(*           | _ -> *)
+(*               acc *)
+(*         end [] (Cobol_preproc.Trace.events doc.artifacts.pplog) *)
+(* ======= *)
     try_with_doc registry text_doc ~f:begin fun ~doc ->
-      let initial =
-        Cobol_preproc.Trace.initial_source_format
-          doc.Lsp_document.TYPES.artifacts.pplog
-      in
-      let filename = Lsp.Uri.to_path (Lsp.Text_document.documentUri doc.textdoc) in
-      Lsp_io.log_info "filename = %S" filename;
-      let loc_line loc =
-        try           (* Some locations in the pre-processor log may not involve
-                         [filename], so we need to catch those cases. *)
-          Some (Cobol_common.Srcloc.start_pos_in ~filename loc).pos_lnum
-        with Invalid_argument _ -> None
-      and format_name: Cobol_preproc.Src_format.any -> string = fun f ->
-        let config = Cobol_preproc.Src_format.to_config f in
-        Cobol_config.Options.string_of_format (SF config)
-      in
       let format_changes =
-        List.rev @@
-        List.fold_left begin fun acc -> function
-          | Cobol_preproc.Trace.CompilerDirective { compdir = CDir_source_format f; loc } ->
-              (match loc_line loc with None -> acc | Some e ->
-                  (* (`List [ `Int e; `String (format_name f.payload)] :: acc)) *)
-                  (`List [ `Int e; `String (format_name f.payload)] :: acc))
-          | _ ->
-              acc
-        end [] (Cobol_preproc.Trace.events doc.artifacts.pplog)
+        List.map begin fun (lnum, format) ->
+          let sf = Cobol_preproc.Src_format.to_config format in
+          let format_name = Cobol_config.Options.string_of_format (SF sf) in
+          `List [`Int lnum; `String format_name]
+        end (format_changes doc)
       in
-      let format_changes = (`List [ `Int 0; `String (format_name initial) ]) :: format_changes in
       Lsp_io.log_info "Reply: %a" (Yojson.Safe.pretty_print ~std:false) (`List format_changes);
+      let _ = toggle_comment_editions doc ranges in
       Some ((`List format_changes) :> Yojson.Safe.t)
       (* None *)
     end |> Option.get
   end
+
+(* --- *)
 
 let handle_get_cfg registry params =
   let params = Jsonrpc.Structured.yojson_of_t params in
@@ -1014,27 +1100,6 @@ let on_request
         Ok (handle_codelens registry params, state)
     | TextDocumentRename params ->
         Ok (handle_rename registry params, state)
-    | UnknownRequest { meth = "superbol/writeProjectConfiguration";
-                       params = Some param } ->
-        handle_write_project_config_command registry param
-    | UnknownRequest { meth = "superbol/getProjectConfiguration";
-                       params = Some param } ->
-        handle_get_project_config_command registry param
-    | UnknownRequest { meth = "superbol/getCFG";
-                       params = Some param } ->
-        Ok (handle_get_cfg registry param, state)
-    | UnknownRequest { meth = "superbol/getPossibleCFG";
-                       params = Some param } ->
-        Ok (handle_get_possible_cfg registry param, state)
-    | UnknownRequest { meth = "superbol/findProcedure";
-                       params = Some param } ->
-        Ok (handle_find_procedure registry param, state)
-    | UnknownRequest { meth = "superbol/toggleComments";
-                       params = Some param } ->
-        Ok (handle_toggle_comments registry param, state)
-    | UnknownRequest { meth; _ } ->
-        Lsp_debug.message "Lsp_request: unknown request (%s)" meth;
-        Error (UnknownRequest meth)
     | TextDocumentDeclaration  (* TextDocumentPositionParams.t.t *) _
     | TextDocumentTypeDefinition  (* TypeDefinitionParams.t.t *) _
     | TextDocumentImplementation  (* ImplementationParams.t.t *) _
@@ -1069,6 +1134,27 @@ let on_request
       ->
         Lsp_debug.message "Lsp_request: unhandled request";
         Error (UnhandledRequest client_req)
+    | UnknownRequest { meth = "superbol/writeProjectConfiguration";
+                       params = Some param } ->
+        handle_write_project_config_command registry param
+    | UnknownRequest { meth = "superbol/getProjectConfiguration";
+                       params = Some param } ->
+        handle_get_project_config_command registry param
+    | UnknownRequest { meth = "superbol/editionsToToggleComments";
+                       params = Some param } ->
+        Ok (handle_toggle_comments registry param, state)
+    | UnknownRequest { meth = "superbol/getCFG";
+                       params = Some param } ->
+        Ok (handle_get_cfg registry param, state)
+    | UnknownRequest { meth = "superbol/getPossibleCFG";
+                       params = Some param } ->
+        Ok (handle_get_possible_cfg registry param, state)
+    | UnknownRequest { meth = "superbol/findProcedure";
+                       params = Some param } ->
+        Ok (handle_find_procedure registry param, state)
+    | UnknownRequest { meth; _ } ->
+        Lsp_debug.message "Lsp_request: unknown request (%s)" meth;
+        Error (UnknownRequest meth)
 
 let handle ?(alternate_handlers = []) (Jsonrpc.Request.{ id; _ } as req) state =
   match Lsp.Client_request.of_jsonrpc req with

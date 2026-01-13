@@ -66,3 +66,5 @@ val prefix_of_literal_kind: literal_kind -> string
 val char_of_quotation: quotation -> char
 val strip_eof: text -> text
 val map_pseudowords: f:(string -> string) -> pseudotext -> pseudotext
+
+val comment_range: comment -> int * int

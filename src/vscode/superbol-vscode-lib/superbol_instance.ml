@@ -218,7 +218,7 @@ let toggle_comments ?text_editor instance =
         ]
       in
       Vscode_languageclient.LanguageClient.sendRequest client ()
-        ~meth:"superbol/toggleComments"
+        ~meth:"superbol/editionsToToggleComments"
         ~data:(Jsonoo.Encode.(object_ [
             "uri", string @@ Vscode.Uri.toString uri ();
             "selectionRanges", list jsselection selections
