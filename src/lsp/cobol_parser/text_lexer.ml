@@ -14,7 +14,6 @@
 open EzCompat
 
 open Cobol_common.Srcloc.INFIX
-(* open Cobol_common.Reserved.TYPES *)
 module LIST = Cobol_common.Basics.LIST
 
 module TYPES = struct
@@ -63,11 +62,11 @@ module TokenHandles = struct
       end)
   let mem_text_token token set =
     mem { token; enabled = false; reserved = false } set
-  (* let union_ set ~normalize:tokens = *)
-  (*   union set (map (fun k -> *)
-  (*       let token = k.token in *)
-  (*       { token; enabled = false; reserved = false } *)
-  (*     ) tokens) *)
+  let union_ set ~normalize:tokens =
+    union set (map (fun k ->
+        let token = k.token in
+        { token; enabled = false; reserved = false }
+      ) tokens)
 end
 
 module IntrinsicHandles =
