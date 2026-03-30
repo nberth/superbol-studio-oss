@@ -11,7 +11,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open EzCompat
 open Ezcmd.V2
 open EZCMD.TYPES
 
@@ -32,26 +31,6 @@ let showable =
     ["pending"], `Pending;
   ]
 
-let iter_comma_separated_spec ~showable ~option_name ~f spec =
-  EzString.split_simplify spec ',' |>
-  List.fold_left begin fun unknowns spec ->
-    let spec' = String.(lowercase_ascii @@ trim @@ spec) in
-    match
-      List.find_map begin fun (sl, tag) ->
-        if List.mem spec' sl then Some tag else None
-      end showable
-    with
-    | Some tag -> f tag; unknowns
-    | None -> StringSet.add spec unknowns
-  end StringSet.empty |>
-  fun unknowns ->
-  if not (StringSet.is_empty unknowns) then
-    raise @@ Stdlib.Arg.Bad
-      Pretty.(to_string "@[Unknown@ arguments@ for@ `%s':@ %a@]"
-                option_name
-                (list ~fopen:"" ~fsep:",@ " ~fclose:"" string)
-                (StringSet.elements unknowns))
-
 let get ?(verbose_on = `Stdout) () =
   let conf = ref "" in
   let dialect = ref None in
@@ -71,10 +50,13 @@ let get ?(verbose_on = `Stdout) () =
   let libexts = ref Cobol_common.Copybook.copybook_extensions in
   let definitions = ref [] in
   let recovery = ref true in
-  let show = ref [`Pending] in                                     (* default *)
-  let silence spec =
-    iter_comma_separated_spec ~showable ~option_name:"--silence" spec
-      ~f:(fun tag -> show := List.filter ((<>) tag) !show)
+  let show, silence_args =
+    Arg_utils.comma_separated_set
+      ~name:"silence"
+      ~default:[`Pending]
+      ~available_values:showable
+      ~set:(fun tag show -> List.filter ((<>) tag) show)
+      "Silence specific messages"
   in
 
   let args = [
@@ -112,8 +94,7 @@ let get ?(verbose_on = `Stdout) () =
     Pretty.to_string "Enable/disable parser recovery after syntax errors \
                       (default: %b)" !recovery;
 
-    ["silence"], Arg.String silence,
-    EZCMD.info "Silence specific messages";
+  ] @ silence_args @ [
 
     ["config-dir"], Arg.String (fun s ->
         search_path := !search_path @ [s]),

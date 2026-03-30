@@ -23,3 +23,12 @@ val switch
   -> name: string
   -> default: bool
   -> bool ref * Ezcmd.V2.EZCMD.TYPES.arg_list
+
+val comma_separated_set
+  : name:string
+  -> ?alternate_names:string list
+  -> available_values:(string list * 'a) list
+  -> default:'b
+  -> set:('a -> 'b -> 'b)
+  -> string
+  -> 'b ref * Ezcmd.V2.EZCMD.TYPES.arg_list

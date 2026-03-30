@@ -11,6 +11,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open EzCompat
 open Ezcmd.V2
 open EZCMD.TYPES
 
@@ -70,3 +71,48 @@ let single_switch ?descr (kind: single_switch) ~name ~default =
 let switch ?descr = function
   | #dual_switch as kind -> dual_switch ?descr kind
   | #single_switch as kind -> single_switch ?descr kind
+
+(* --- *)
+
+let fold_comma_separated_spec ~available_values ~option_name ~f spec acc =
+  EzString.split_simplify spec ',' |>
+  List.fold_left begin fun (acc, unknowns) spec ->
+    let spec' = String.(lowercase_ascii @@ trim @@ spec) in
+    if spec' = "" then acc, unknowns else
+      match
+        List.find_map begin fun (sl, tag) ->
+          if List.mem spec' sl then Some tag else None
+        end available_values
+      with
+      | Some tag -> f tag acc, unknowns
+      | None -> acc, StringSet.add spec unknowns
+  end (acc, StringSet.empty) |>
+  fun (acc, unknowns) ->
+  if StringSet.is_empty unknowns then
+    acc
+  else
+    raise @@ Stdlib.Arg.Bad
+      Pretty.(to_string "@[Unknown@ arguments@ for@ `%s':@ %a@]"
+                option_name
+                (list ~fopen:"" ~fsep:",@ " ~fclose:"" string)
+                (StringSet.elements unknowns))
+
+let comma_separated_set ~name ?(alternate_names=[]) ~available_values ~default
+    ~set descr =
+  let values = ref default in                                      (* default *)
+  let set_values_from_string s =
+    values :=
+      fold_comma_separated_spec ~available_values s !values
+        ~option_name:("--"^name)
+        ~f:set
+  in
+  values,
+  [
+    name :: alternate_names,
+    Arg.String set_values_from_string,
+    Pretty.string_to EZCMD.info
+      "%s;@ accepts@ a@ comma-separated@ list@ of@ options.@ Accepted@ options@ \
+       include@ %a." descr
+      Pretty.(list ~fopen:"\"" ~fsep:"\",@ \"" ~fclose:"\"" string)
+      List.(flatten @@ map fst available_values)
+  ]
