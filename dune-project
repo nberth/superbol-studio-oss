@@ -1029,7 +1029,7 @@
 (package
  (name cobol_interp)
  (synopsis "SuperBOL Studio OSS Project")
- (description "Interpreter for COBOL programs (core interpretation logic)")
+ (description "Interpreter for COBOL programs (libcob-based interpretation logic)")
  
   (sites
     
@@ -1040,17 +1040,19 @@
    (pretty (= :version))
    (ezlibcob (= :version))
    (cobol_unit (= :version))
-   (cobol_ir (= :version))
    (cobol_data (= :version))
+   (cir_types (= :version))
+   (cir_logic (= :version))
+   (cir_builder (= :version))
    odoc
    (dune (and ( >= 3.17.0 )( < 3.19.0 )))
   )
  )
 
 (package
- (name cobol_ir)
+ (name cir_types)
  (synopsis "SuperBOL Studio OSS Project")
- (description "Intermediate representation for COBOL programs")
+ (description "High-level intermediate representation for COBOL programs (types)")
  
   (sites
     
@@ -1061,6 +1063,44 @@
    (pretty (= :version))
    (cobol_unit (= :version))
    (cobol_data (= :version))
+   odoc
+   (dune (and ( >= 3.17.0 )( < 3.19.0 )))
+  )
+ )
+
+(package
+ (name cir_builder)
+ (synopsis "SuperBOL Studio OSS Project")
+ (description "Intermediate representation for COBOL programs (parametric builder)")
+ 
+  (sites
+    
+  )
+
+ (depends
+   (ocaml (>= 4.14.0))
+   (pretty (= :version))
+   (cobol_unit (= :version))
+   (cobol_data (= :version))
+   (cir_types (= :version))
+   odoc
+   (dune (and ( >= 3.17.0 )( < 3.19.0 )))
+  )
+ )
+
+(package
+ (name cir_logic)
+ (synopsis "SuperBOL Studio OSS Project")
+ (description "Intermediate representation for COBOL programs (semantics)")
+ 
+  (sites
+    
+  )
+
+ (depends
+   (ocaml (>= 4.14.0))
+   (pretty (= :version))
+   (cir_types (= :version))
    odoc
    (dune (and ( >= 3.17.0 )( < 3.19.0 )))
   )
