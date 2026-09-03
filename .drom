@@ -5,7 +5,7 @@ version:0.9.0
 
 # hash of toml configuration files
 # used for generation of all files
-db163199ff7a40b70126abb013e81d41:.
+a3e25e2daeea5d92768d7a63b38b419f:.
 # end context for .
 
 # begin context for .github/workflows/workflow.yml
@@ -806,7 +806,7 @@ e4df69293b3f208644cd9af6f489e1de:src/tramabol/cir_logic/dune
 
 # begin context for src/tramabol/cir_types/dune
 # file src/tramabol/cir_types/dune
-1316aea16ecdf2cafb7204147feb991f:src/tramabol/cir_types/dune
+6d80c7bcd2c1680b7f85a4f20b6d4f73:src/tramabol/cir_types/dune
 # end context for src/tramabol/cir_types/dune
 
 # begin context for src/tramabol/cir_types/version.mlt
@@ -816,7 +816,7 @@ e4df69293b3f208644cd9af6f489e1de:src/tramabol/cir_logic/dune
 
 # begin context for src/tramabol/cobol_interp/dune
 # file src/tramabol/cobol_interp/dune
-1eb46c88a574ed90c7c459412b3751c0:src/tramabol/cobol_interp/dune
+b00ea850d6bcf0d54f1bf3b8b5f34bb5:src/tramabol/cobol_interp/dune
 # end context for src/tramabol/cobol_interp/dune
 
 # begin context for src/tramabol/cobol_interp/version.mlt
