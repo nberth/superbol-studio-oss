@@ -159,6 +159,12 @@ and warning =
         table_item_name: Cobol_ptree.qualname with_loc option;
         (* table_item: (\* ([>`table], _)  *\)Cobol_data.Types.item_definition with_loc; *)
       }
+  | Ignored_clause_in_redefinition of
+      {
+        redef_name: Cobol_ptree.data_name with_loc option;
+        clause_loc: srcloc;
+        clause_name: string;
+      }
   | Mismatching_usage_in_group of                 (* not enforced by GnuCOBOL *)
       {
         item_name: Cobol_ptree.data_name with_loc option;
@@ -218,6 +224,7 @@ let error_loc = function
 
 let warning_loc = function
   | Duplicate_clause { second_loc = loc; _ }
+  | Ignored_clause_in_redefinition { clause_loc = loc; _ }
   | Mismatching_usage_in_group { item_usage = { loc; _ }; _ }
   | Redefinition_of_table_item { redef_loc = loc; _ }
   | Unsupported_usage { usage_clause = { loc; _ } } ->
@@ -327,6 +334,9 @@ let pp_warning ppf = function
   | Redefinition_of_table_item { table_item_name; _ } ->
       Pretty.print ppf "Redefinition@ of@ item@ with@ OCCURS@ clause%a"
         Fmt.(option (sp ++ Cobol_ptree.pp_qualname')) table_item_name
+  | Ignored_clause_in_redefinition { clause_name; redef_name; _ } ->
+      Pretty.print ppf "Ignored@ %s@ clause@ for@ %a@ with@ REDEFINES@ clause"
+        clause_name pp_data_name'_opt redef_name
   | Mismatching_usage_in_group { item_usage; item_name; group_usage } ->
       Pretty.print ppf "Mismatching@ USAGE@ %a@ for@ %a,@ subordinate@ to@ a@ \
                         group@ with@ USAGE@ %a"
