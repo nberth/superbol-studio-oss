@@ -45,6 +45,10 @@ let non_digit = function
   | '0' .. '9' -> false
   | _ -> true
 
+let non_fixednum = function
+  | '0' .. '9' | '.' | '/' -> false
+  | _ -> true
+
 let non_bool_bit ~base = function
   | '0' | '1' -> false
   | '2' .. '9' | 'a' .. 'f' | 'A' .. 'F' when base = `Hex -> false
@@ -106,7 +110,10 @@ let string_of_integer =
 (* --- *)
 
 let fixed_zero = Q.zero
-let fixed_of_string = Q.of_string
+let fixed_of_string s =
+  try Ok (Q.of_string s)
+  with Invalid_argument _ ->
+    invalid_chars [s,   0,                          non_fixednum]
 let fixed_of_strings ~integral ~fractional =
   try Ok (Printf.ksprintf Q.of_string "%s.%s" integral fractional)
   with Invalid_argument _ ->
