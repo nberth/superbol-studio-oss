@@ -611,6 +611,17 @@ let on_redefinition_item acc item_clauses
               acc                                                       (* ok *)
         end acc redefined_item.item_rev_fields
       in
+      let acc, item_clauses =
+        match item_clauses.Typeck_clauses.value with
+        | None ->
+            acc, item_clauses
+        | Some c ->
+            warn acc @@
+            Ignored_clause_in_redefinition { clause_loc = ~@c;
+                                             clause_name = "VALUE";
+                                             redef_name = item_name },
+            { item_clauses with value = None }
+      in
       let item_diagnostics, item_clauses =
         check_inherited_usage ~item_name item_clauses base_stack
       and item_qualname = qualname item_name base_stack
