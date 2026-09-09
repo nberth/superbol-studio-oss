@@ -3,6 +3,7 @@
 ## [_] Next release
 
 ### Added
+- Detection of preprocessor variables that are of category numeric [#651](https://github.com/OCamlPro/superbol-studio-oss/pull/651)
 - Warning on ignored `VALUE` clause for items with `REDEFINES` clause [#650](https://github.com/OCamlPro/superbol-studio-oss/pull/650)
 - Handling of data item documentation that spans over several lines [#639](https://github.com/OCamlPro/superbol-studio-oss/pull/639)
 - Display of documentation for data items defined in copybooks [#641](https://github.com/OCamlPro/superbol-studio-oss/pull/641)

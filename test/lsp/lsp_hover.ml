@@ -1659,6 +1659,213 @@ let%expect_test "hover-preproc-directives" =
     References: 1
   |}];;
 
+let%expect_test "hover-preproc-directives-numeric" =
+  Unix.putenv "ONE_HALF" "0.5"; (* Warning: left in environment after the test *)
+  Unix.putenv "ONE_OVER_2" "1/2"; (* Warning: left in environment after the test *)
+  let { projdir; end_with_postproc }, server = make_lsp_project () in
+  let prog_n_markers =
+    extract_position_markers {cobol|
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       >>DEFINE _|_ONE_HALF AS PARAMETER
+       >>IF ONE_HALF_|_ = 0000.5
+       77 WS VALUE "OK".
+       >>ELSE
+       77 WS VALUE "KO".
+       >>END-IF
+       >>DEFINE _|_ONE_OVER_2 AS PARAMETER
+       >>IF ONE_HALF <> ONE_OVER_2_|_
+       77 WX VALUE "KO".
+       >>ELSE
+       77 WX VALUE "OK".
+       >>END-IF
+       PROCEDURE DIVISION.
+         DISPLAY W_|_S W_|_X
+         GOBACK.
+    |cobol}
+  in
+  print_hovered server ~projdir ~show_hover_text_on_definitions:false
+    prog_n_markers;
+  Pretty.out "Now with hover text on defintions@\n";
+  print_hovered server ~projdir ~show_hover_text_on_definitions:true
+    prog_n_markers;
+  end_with_postproc [%expect.output];
+  [%expect {|
+    {"params":{"diagnostics":[],"uri":"file://__rootdir__/prog.cob"},"method":"textDocument/publishDiagnostics","jsonrpc":"2.0"}
+    (line 5, character 16):
+    __rootdir__/prog.cob:6.16-6.24:
+       3          PROGRAM-ID. prog.
+       4          DATA DIVISION.
+       5          WORKING-STORAGE SECTION.
+       6 >        >>DEFINE ONE_HALF AS PARAMETER
+    ----                   ^^^^^^^^
+       7          >>IF ONE_HALF = 0000.5
+       8          77 WS VALUE "OK".
+    References: 3
+    (line 6, character 20):
+    __rootdir__/prog.cob:7.12-7.20:
+       4          DATA DIVISION.
+       5          WORKING-STORAGE SECTION.
+       6          >>DEFINE ONE_HALF AS PARAMETER
+       7 >        >>IF ONE_HALF = 0000.5
+    ----               ^^^^^^^^
+       8          77 WS VALUE "OK".
+       9          >>ELSE
+    Compilation variable with value 0.5 (defined in process environment)
+    ---
+    References: 3
+    (line 11, character 16):
+    __rootdir__/prog.cob:12.16-12.26:
+       9          >>ELSE
+      10          77 WS VALUE "KO".
+      11          >>END-IF
+      12 >        >>DEFINE ONE_OVER_2 AS PARAMETER
+    ----                   ^^^^^^^^^^
+      13          >>IF ONE_HALF <> ONE_OVER_2
+      14          77 WX VALUE "KO".
+    References: 2
+    (line 12, character 34):
+    __rootdir__/prog.cob:13.24-13.34:
+      10          77 WS VALUE "KO".
+      11          >>END-IF
+      12          >>DEFINE ONE_OVER_2 AS PARAMETER
+      13 >        >>IF ONE_HALF <> ONE_OVER_2
+    ----                           ^^^^^^^^^^
+      14          77 WX VALUE "KO".
+      15          >>ELSE
+    Compilation variable with value 0.5 (defined in process environment)
+    ---
+    References: 2
+    (line 18, character 18):
+    __rootdir__/prog.cob:19.17-19.19:
+      16          77 WX VALUE "OK".
+      17          >>END-IF
+      18          PROCEDURE DIVISION.
+      19 >          DISPLAY WS WX
+    ----                    ^^
+      20            GOBACK.
+      21
+    ```cobol
+    WS
+    ```
+    ```cobol
+    PIC XX USAGE DISPLAY
+    ```
+    ALPHANUMERIC(2)
+    VALUE "OK"
+    ---
+    References: 2
+    (line 18, character 21):
+    __rootdir__/prog.cob:19.20-19.22:
+      16          77 WX VALUE "OK".
+      17          >>END-IF
+      18          PROCEDURE DIVISION.
+      19 >          DISPLAY WS WX
+    ----                       ^^
+      20            GOBACK.
+      21
+    ```cobol
+    WX
+    ```
+    ```cobol
+    PIC XX USAGE DISPLAY
+    ```
+    ALPHANUMERIC(2)
+    VALUE "OK"
+    ---
+    References: 2
+    {"params":{"diagnostics":[],"uri":"file://__rootdir__/prog.cob"},"method":"textDocument/publishDiagnostics","jsonrpc":"2.0"}
+    Now with hover text on defintions
+    (line 5, character 16):
+    __rootdir__/prog.cob:6.16-6.24:
+       3          PROGRAM-ID. prog.
+       4          DATA DIVISION.
+       5          WORKING-STORAGE SECTION.
+       6 >        >>DEFINE ONE_HALF AS PARAMETER
+    ----                   ^^^^^^^^
+       7          >>IF ONE_HALF = 0000.5
+       8          77 WS VALUE "OK".
+    Compilation variable with value 0.5 (defined in process environment)
+    ---
+    References: 3
+    (line 6, character 20):
+    __rootdir__/prog.cob:7.12-7.20:
+       4          DATA DIVISION.
+       5          WORKING-STORAGE SECTION.
+       6          >>DEFINE ONE_HALF AS PARAMETER
+       7 >        >>IF ONE_HALF = 0000.5
+    ----               ^^^^^^^^
+       8          77 WS VALUE "OK".
+       9          >>ELSE
+    Compilation variable with value 0.5 (defined in process environment)
+    ---
+    References: 3
+    (line 11, character 16):
+    __rootdir__/prog.cob:12.16-12.26:
+       9          >>ELSE
+      10          77 WS VALUE "KO".
+      11          >>END-IF
+      12 >        >>DEFINE ONE_OVER_2 AS PARAMETER
+    ----                   ^^^^^^^^^^
+      13          >>IF ONE_HALF <> ONE_OVER_2
+      14          77 WX VALUE "KO".
+    Compilation variable with value 0.5 (defined in process environment)
+    ---
+    References: 2
+    (line 12, character 34):
+    __rootdir__/prog.cob:13.24-13.34:
+      10          77 WS VALUE "KO".
+      11          >>END-IF
+      12          >>DEFINE ONE_OVER_2 AS PARAMETER
+      13 >        >>IF ONE_HALF <> ONE_OVER_2
+    ----                           ^^^^^^^^^^
+      14          77 WX VALUE "KO".
+      15          >>ELSE
+    Compilation variable with value 0.5 (defined in process environment)
+    ---
+    References: 2
+    (line 18, character 18):
+    __rootdir__/prog.cob:19.17-19.19:
+      16          77 WX VALUE "OK".
+      17          >>END-IF
+      18          PROCEDURE DIVISION.
+      19 >          DISPLAY WS WX
+    ----                    ^^
+      20            GOBACK.
+      21
+    ```cobol
+    WS
+    ```
+    ```cobol
+    PIC XX USAGE DISPLAY
+    ```
+    ALPHANUMERIC(2)
+    VALUE "OK"
+    ---
+    References: 2
+    (line 18, character 21):
+    __rootdir__/prog.cob:19.20-19.22:
+      16          77 WX VALUE "OK".
+      17          >>END-IF
+      18          PROCEDURE DIVISION.
+      19 >          DISPLAY WS WX
+    ----                       ^^
+      20            GOBACK.
+      21
+    ```cobol
+    WX
+    ```
+    ```cobol
+    PIC XX USAGE DISPLAY
+    ```
+    ALPHANUMERIC(2)
+    VALUE "OK"
+    ---
+    References: 2
+  |}];;
+
 let%expect_test "hover-datadef-78" =
   let { projdir; end_with_postproc }, server = make_lsp_project () in
   print_hovered server ~projdir @@ extract_position_markers {cobol|

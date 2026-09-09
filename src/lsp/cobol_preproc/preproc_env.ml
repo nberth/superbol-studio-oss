@@ -209,3 +209,12 @@ let numeric_literal_value (f: fixed_literal with_loc) : value with_src =
 
 let numeric_value (f: fixed_value with_loc) : value with_src =
   Cobol_common.Srcloc.with_loc_as_src ~loc:~@f (numeric_value' f)
+
+(* --- *)
+
+let numeric_or_else_alphanum_of_string str : value =
+  match Cobol_data.Value.fixed_of_string str with
+  | Ok value ->
+      Numeric value
+  | Error Invalid_chars _ ->
+      Alphanum (Cobol_data.Value.plain_alphanum str)
