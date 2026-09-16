@@ -27,14 +27,16 @@ module Tokens = struct
   let pp'_list = Grammar_tokens_printer.pp_tokens
   let pp'_list_with_loc_info = Grammar_tokens_printer.pp_tokens_with_loc_info
 end
-module Expect = Grammar_expect
-module Printer = Grammar_printer
 module Keywords = Text_keywords
-module Grammar_interpr = Grammar.MenhirInterpreter
+module Overlay_manager = Grammar_utils.Overlay_manager
+
+module Expect = Grammar_expect.Make (Overlay_manager)
+module Printer = Grammar_printer.Make (Overlay_manager)
 
 (** {1 Exported functions} *)
 
 include Parser_engine
+module Grammar_interpr = Grammar_types.Grammar_interpr
 
 (** {1 Modules and functions exported for testing purposes}
 
@@ -44,7 +46,7 @@ module INTERNAL = struct
 
   (** {2 COBOL grammar} *)
 
-  module Grammar (* : Grammar_sig.S *) = Grammar
+  module Grammar (* : Grammar_sig.S *) = Grammar_types.Grammar
 
   (** {2 Dummy parser} *)
 

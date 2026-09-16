@@ -11,27 +11,29 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Grammar.MenhirInterpreter
+module Make (Overlay_manager: Cobol_preproc.Src_overlay.MANAGER) : sig
+  open Grammar.Make (Overlay_manager)
+  open MenhirInterpreter
 
-module Completion_entry: sig
-  type t =
-    | K of token Cobol_common.Basics.NEL.t
-    | FunctionName
-    | ProcedureRef
-    | QualifiedRef
-  val compare: t -> t -> int
-  val pp: t Fmt.t
+  module Completion_entry: sig
+    type t =
+      | K of token Cobol_common.Basics.NEL.t
+      | FunctionName
+      | ProcedureRef
+      | QualifiedRef
+    val compare: t -> t -> int
+    val pp: t Fmt.t
+  end
+
+  type action =
+    | Feed: 'a nonterminal -> action
+    | Reduce: production -> action
+
+  val actions_in: env:_ env -> action list
+
+  val completion_entries_in: env:_ env -> Completion_entry.t list
+
+  val eager_completion_entries_in: env:_ env -> Completion_entry.t list
+
+  val default_nonterminal_value: 'a nonterminal -> 'a
 end
-
-type action =
-  | Feed: 'a nonterminal -> action
-  | Reduce: production -> action
-
-val actions_in: env:_ env -> action list
-
-val completion_entries_in: env:_ env -> Completion_entry.t list
-
-val eager_completion_entries_in: env:_ env -> Completion_entry.t list
-
-val default_nonterminal_value: 'a nonterminal -> 'a
-

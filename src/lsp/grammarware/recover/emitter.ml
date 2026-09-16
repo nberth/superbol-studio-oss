@@ -139,8 +139,6 @@ end = struct
   open Format
 
   let emit_default_value ppf =
-    fprintf ppf "open %s\n\n"
-      (String.capitalize_ascii (Filename.basename Grammar.basename));
     fprintf ppf "module Default = struct\n";
     A.default_prelude ppf;
 
@@ -150,13 +148,13 @@ end = struct
         match A.default_terminal t with
         | None -> ()
         | Some str ->
-            fprintf ppf "    | %s.T T_%s -> %s\n" menhir (Terminal.name t) str
+            fprintf ppf "    | T T_%s -> %s\n" (Terminal.name t) str
       );
     Nonterminal.iter (fun n ->
         match A.default_nonterminal n with
         | None -> ()
         | Some str ->
-            fprintf ppf "    | %s.N %s.N_%s -> %s\n" menhir menhir (Nonterminal.mangled_name n) str
+            fprintf ppf "    | N N_%s -> %s\n" (Nonterminal.mangled_name n) str
       );
     (*fprintf ppf "    | _ -> raise Not_found\n"; should be exhaustive*)
     fprintf ppf "end\n\n";

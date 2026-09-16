@@ -11,8 +11,6 @@
 (*                                                                            *)
 (******************************************************************************)
 
-open MenhirSdk
-
 let name = ref ""
 let verbose = ref false
 
@@ -33,7 +31,13 @@ let () =
   if !name = "" then
     usage ()
 
-module G = Cmly_read.Read (struct let filename = !name end)
+module Gu =
+  Grammarware_utils.Make (struct
+    let filename = !name
+    let name = "recover"
+  end)
+module G = Gu.Grammar
+
 module A = Recover_attrib.Make(G)
 
 let () =
@@ -74,4 +78,8 @@ let () = if !verbose then R.report Format.err_formatter
 
 module E = Emitter.Make(G)(A)(S)(R)
 
-let () = E.emit Format.std_formatter
+let () =
+  Gu.pp_extension_module Format.std_formatter begin fun ppf ->
+    Fmt.pf ppf "%t@\n" Gu.pp_grammar_open;
+    Fmt.pf ppf "%t@\n" E.emit;
+  end

@@ -30,7 +30,15 @@ let () =
 
 let status = ref 0
 
-include MenhirSdk.Cmly_read.Read (struct let filename = !name end)
+module Gu =
+  Grammarware_utils.Make (struct
+    let filename = !name
+    let name = "context"
+  end)
+
+open Gu.Grammar
+
+(* --- *)
 
 let pp_pos ppf r =
   let Lexing.({ pos_lnum = l1; pos_bol = b1; pos_cnum = c1; pos_fname; _ },
@@ -46,13 +54,6 @@ let nonterminal_context n : (string * Range.t) option =
   match Nonterminal.kind n with
   | `REGULAR -> context (Nonterminal.attributes n)
   | `START -> None
-
-let emit_prelude ppf =
-  List.iter begin fun a ->
-    if Attribute.has_label "header" a ||
-       Attribute.has_label "context.header" a then
-      Format.fprintf ppf "%s\n" (Attribute.payload a)
-  end Grammar.attributes
 
 let emit_nonterminal_contexts ppf =
   Fmt.pf ppf "\
@@ -213,21 +214,20 @@ let emit_contexts_sinks ppf =
 
 
 let emit ppf =
-  Fmt.pf ppf
-    "(* Caution: this file was automatically generated from %s; do not edit *)\
-     @\nopen %s\
-     @\nopen MenhirInterpreter\
-     @\n%t\
-     @\n%t\
-     @\n%t\
-     @\n%t\
-     @\n"
-    !name
-    (String.capitalize_ascii (Filename.basename Grammar.basename))
-    emit_prelude
-    emit_nonterminal_contexts
-    emit_contexts_mapping
-    emit_contexts_sinks
+  Gu.pp_extension_module ppf begin fun ppf ->
+    Fmt.pf ppf "%t@\n" Gu.pp_grammar_open;
+    Fmt.pf ppf
+      "@\nopen MenhirInterpreter\
+       @\n%t\
+       @\n%t\
+       @\n%t\
+       @\n%t\
+       @\n"
+      Gu.pp_header
+      emit_nonterminal_contexts
+      emit_contexts_mapping
+      emit_contexts_sinks
+  end
 
 let () =
   emit Fmt.stdout;

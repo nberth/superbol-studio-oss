@@ -2,7 +2,7 @@
 (*                                                                        *)
 (*                        SuperBOL OSS Studio                             *)
 (*                                                                        *)
-(*  Copyright (c) 2022-2023 OCamlPro SAS                                  *)
+(*  Copyright (c) 2022-2026 OCamlPro SAS                                  *)
 (*                                                                        *)
 (* All rights reserved.                                                   *)
 (* This source code is licensed under the GNU Affero General Public       *)
@@ -11,15 +11,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Make (Overlay_manager: Cobol_preproc.Src_overlay.MANAGER) : sig
-  val token_of_terminal
-    : 'a Grammar.Make (Overlay_manager).MenhirInterpreter.terminal
-    -> 'a
-    -> Grammar.Make (Overlay_manager).token
-  val print_symbol
-    : Grammar.Make (Overlay_manager).MenhirInterpreter.xsymbol
-    -> string
-  val print_token
-    : Grammar.Make (Overlay_manager).token
-    -> string
-end
+(* Note: unused for now. *)
+
+(** {1 Alphanumerics with symbolic EBCDIC characters} *)
+
+(** [decode_symbolic_ebcdics' ~quotation s'] decodes the symbolic EBCDIC
+    characters from the localized string [s'], and returns the resulting
+    {!Grammar_tokens.ALPHANUM} token and a set of diagnostics.  In case of
+    errors, the alphanumeric token returned may represent part of the encoded
+    input. *)
+val decode_symbolic_ebcdics'
+  : quotation: Cobol_ptree.alphanum_quote
+  -> string Cobol_common.Srcloc.with_loc
+  -> Grammar_tokens.token Cobol_common.Srcloc.with_loc *
+     Parser_diagnostics_types.error list

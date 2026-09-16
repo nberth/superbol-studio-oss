@@ -12,6 +12,7 @@
 (**************************************************************************)
 
 open Cobol_common.Srcloc.TYPES
+open Cobol_common.Basics.TYPES
 
 type error =
   | Caught_exception of { msg: string }
@@ -41,3 +42,31 @@ and unsupported_stuff =
 
 and unterminated_stuff =
   | Comment_entry
+
+(* --- *)
+
+type customizable_diagnostic =
+  | Implementation_pending of string
+  | Missing_tokens of printable_insertions
+  | Invalid_syntax
+  | Fallthrough_to_when_other
+  | No_when_branch_before_when_other
+  | Exec_block_diagnostic of Cobol_common.Exec_block.diagnostic
+
+and printable_insertions =
+  (Grammar_types.Grammar_interpr.xsymbol,
+   Grammar_tokens.token) Recovery_types.generic_insertion nel
+
+(* --- *)
+
+type custom =
+  {
+    severity: Cobol_common.Diagnostics.severity;
+    loc: srcloc option;
+    diag: customizable_diagnostic;
+  }
+type diagnostics =
+  {
+    errors: error list;
+    customs: custom list;
+  }

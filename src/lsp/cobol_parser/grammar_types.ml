@@ -11,15 +11,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Make (Overlay_manager: Cobol_preproc.Src_overlay.MANAGER) : sig
-  val token_of_terminal
-    : 'a Grammar.Make (Overlay_manager).MenhirInterpreter.terminal
-    -> 'a
-    -> Grammar.Make (Overlay_manager).token
-  val print_symbol
-    : Grammar.Make (Overlay_manager).MenhirInterpreter.xsymbol
-    -> string
-  val print_token
-    : Grammar.Make (Overlay_manager).token
-    -> string
-end
+module Overlay_manager = Grammar_utils.Overlay_manager
+
+module Grammar = Grammar.Make (Overlay_manager)
+module Grammar_context = Grammar_context.Make (Overlay_manager)
+module Grammar_printer = Grammar_printer.Make (Overlay_manager)
+module Grammar_recover = Grammar_recover.Make (Overlay_manager)
+module Grammar_interpr = Grammar.MenhirInterpreter
+module Grammar_recovery =
+  Recovery.Make (Grammar_interpr) (struct
+    include Grammar_recover
+    include Grammar_printer
+  end)
+module Grammar_post_actions = Grammar_post_actions.Make (Overlay_manager)

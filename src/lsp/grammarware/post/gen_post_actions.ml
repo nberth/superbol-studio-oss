@@ -26,9 +26,13 @@ let cmlyname = match !cmlyname with
 
 (* --- *)
 
-let menhir = "MenhirInterpreter"
+module Gu =
+  Grammarware_utils.Make (struct
+    let name = "post"
+    let filename = cmlyname
+  end)
 
-include MenhirSdk.Cmly_read.Read (struct let filename = cmlyname end)
+open Gu.Grammar
 
 (* --- *)
 
@@ -72,53 +76,14 @@ let post_action attrs =
 
 (* --- *)
 
-let pp_functor_parameters =
-  Fmt.(list (fmt "(%s)"))
-
-let pp_extension_module ppf pp_struct =
-  let all_parameters =
-    let parameters =
-      List.filter (Attribute.has_label "post.parameter") Grammar.attributes |>
-      List.map Attribute.payload
-    in
-    Grammar.parameters @ parameters
-  in
-  if all_parameters <> [] then
-    Fmt.pf ppf
-      "@\n@[<2>module@ Make@ %a =@]\
-       @\n@[<2>struct@;%t@]\
-       @\nend"
-      pp_functor_parameters all_parameters
-      pp_struct
-  else
-    pp_struct ppf
-
-let pp_grammar_open ppf =
-  let grammar_module =
-    String.capitalize_ascii (Filename.basename Grammar.basename)
-  and grammar_params =
-    List.map (fun p -> List.hd (String.split_on_char ':' p)) Grammar.parameters
-  in
-  if grammar_params = [] then
-    Fmt.pf ppf "@\n@[<2>open@ %s@]" grammar_module
-  else
-    Fmt.pf ppf "@\n@[<2>open@ %s.Make@ %a@]" grammar_module
-      pp_functor_parameters grammar_params;
-  Fmt.pf ppf "@\nopen MenhirInterpreter"
-
-let pp_header ppf =
-  List.iter begin fun a ->
-    if Attribute.has_label "header" a ||
-       Attribute.has_label "post.header" a then
-      Fmt.pf ppf "@\n%s" (Attribute.payload a)
-  end Grammar.attributes
-
 let pp_post_type ppf =
   Fmt.pf ppf "@[<2>type post_action =";
   StrMap.iter begin fun _ { tag; fun_type } ->
     Fmt.pf ppf "@\n|@[<2> %s: (@[%a@]) -> post_action@]" tag Fmt.text fun_type
   end post_actions;
   Fmt.pf ppf "@\n| NoPost: post_action@]"
+
+let menhir = "Grammar.MenhirInterpreter"
 
 let pp_production_posts ppf =
   let last_item_attrs p =
@@ -130,11 +95,13 @@ let pp_production_posts ppf =
   in
   Fmt.pf ppf
     "@\n@[<2>let post_production_num\
-     @\n: type k. int -> k env -> post_action = fun prod_num env ->\
+     @\n: type k. int -> k %s.env -> post_action = fun prod_num env ->\
+     @\nlet open %s in\
      @\nmatch top env with\
      @\n| None -> NoPost\
      @\n@[<4>| Some (Element (state, value, _, _)) ->\
-     @\nmatch incoming_symbol state, prod_num with";
+     @\nmatch incoming_symbol state, prod_num with"
+    menhir menhir;
   Production.iter begin fun p ->
     let pp_post_action ppf ({ tag; _ }, func) = match tidyup func with
       | "" -> Fmt.pf ppf "%s value" tag
@@ -152,18 +119,14 @@ let pp_production_posts ppf =
     "@\n| _ -> NoPost@]@]\
      @\n\
      @\n@[<2>let post_production\
-     @\n: type k. production -> k env -> post_action = fun p ->\
-     @\npost_production_num (production_index p)@]"
+     @\n: type k. %s.production -> k %s.env -> post_action = fun p ->\
+     @\npost_production_num (%s.production_index p)@]"
+    menhir menhir menhir
 
 let emit ppf =
-  Fmt.pf ppf
-    "(* Caution: this file was automatically generated from %s; do not edit *)\
-     @\n[@@@@@@warning \"-33\"] (* <- do not warn on unused opens *)\
-     @\n[@@@@@@warning \"-27\"] (* <- do not warn on unused variabes *)\
-     @\n" cmlyname;
-  Fmt.pf ppf "%a@\n" pp_extension_module begin fun ppf ->
-    Fmt.pf ppf "%t@\n" pp_grammar_open;
-    Fmt.pf ppf "%t@\n" pp_header;
+  Gu.pp_extension_module ppf begin fun ppf ->
+    Fmt.pf ppf "%t@\n" Gu.pp_grammar_open;
+    Fmt.pf ppf "%t@\n" Gu.pp_header;
     Fmt.pf ppf "%t@\n" pp_post_type;
     Fmt.pf ppf "%t@\n" pp_production_posts;
   end

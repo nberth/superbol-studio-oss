@@ -11,129 +11,123 @@
 (*                                                                            *)
 (******************************************************************************)
 
-open MenhirSdk
+(* open MenhirSdk *)
 
-include Cmly_read.Read(struct let filename = Sys.argv.(1) end)
+module Gu =
+  Grammarware_utils.Make (struct
+    let name = "printer"
+    let filename = Sys.argv.(1)
+  end)
+
+open Gu.Grammar
+
+let menhir =
+  "Grammar.MenhirInterpreter"
+
+(** Printer from attributes *)
 
 let is_attribute names attr =
   List.exists (fun l -> Attribute.has_label l attr) names
 
-let printf = Printf.printf
-let sprintf = Printf.sprintf
-
-let menhir =
-  let name = Filename.chop_extension (Filename.basename Sys.argv.(1)) in
-  (String.capitalize_ascii name)^".MenhirInterpreter"
-
-
-(** Print header, if any *)
-
-let print_header () =
-  List.iter
-    (fun attr ->
-       if is_attribute ["header"; "printer.header"] attr then
-         printf "%s\n" (Attribute.payload attr))
-    Grammar.attributes
-
-(** Printer from attributes *)
-
-let symbol_printer default attribs =
+let symbol_printer ppf (default, attribs) =
   match List.find (is_attribute ["symbol"]) attribs with
-  | attr -> Attribute.payload attr
+  | attr ->
+      Fmt.string ppf (Attribute.payload attr)
   | exception Not_found ->
-    sprintf "%S" default
+      Fmt.pf ppf "%S" default
 
-let print_symbol () =
+let print_symbol ppf =
   let case_t t =
     match Terminal.kind t with
     | `REGULAR | `ERROR | `EOF ->
-      printf "  | %s.X (%s.T T_%s) -> %s\n"
-        menhir menhir
-        (Terminal.name t)
-        (symbol_printer (Terminal.name t) (Terminal.attributes t))
+        Fmt.pf ppf "    | X T T_%s -> %a\n"
+          (Terminal.name t)
+          symbol_printer (Terminal.name t, Terminal.attributes t)
     | `PSEUDO -> ()
   and case_n n =
     match Nonterminal.kind n with
     | `REGULAR ->
-      printf "  | %s.X (%s.N %s.N_%s) -> %s\n"
-        menhir menhir menhir
-        (Nonterminal.mangled_name n)
-        (symbol_printer (Nonterminal.mangled_name n) (Nonterminal.attributes n))
+        Fmt.pf ppf "    | X N N_%s -> %a\n"
+          (Nonterminal.mangled_name n)
+          symbol_printer (Nonterminal.mangled_name n, Nonterminal.attributes n)
     | `START -> ()
   in
-  printf "let print_symbol = function\n";
+  Fmt.pf ppf "let print_symbol: %s.xsymbol -> _ = function\n" menhir;
   Terminal.iter case_t;
   Nonterminal.iter case_n
 
-let value_printer default attribs =
+let value_printer ppf (default, attribs) =
   match List.find (is_attribute ["printer"]) attribs with
-  | attr -> sprintf "(%s)" (Attribute.payload attr)
+  | attr ->
+      Fmt.pf ppf "(%s)" (Attribute.payload attr)
   | exception Not_found ->
-    sprintf "(fun _ -> %s)" (symbol_printer default attribs)
+      Fmt.pf ppf "(fun _ -> %a)" symbol_printer (default, attribs)
 
-let print_value () =
+let print_value ppf =
   let case_t t =
     match Terminal.kind t with
     | `REGULAR | `ERROR | `EOF->
-      printf "  | %s.T T_%s -> %s\n"
-        menhir
-        (Terminal.name t)
-        (value_printer (Terminal.name t) (Terminal.attributes t))
+        Fmt.pf ppf "    | T T_%s -> %a\n"
+          (Terminal.name t)
+          value_printer (Terminal.name t, Terminal.attributes t)
     | `PSEUDO -> ()
   and case_n n =
     match Nonterminal.kind n with
     | `REGULAR ->
-      printf "  | %s.N %s.N_%s -> %s\n"
-        menhir menhir
-        (Nonterminal.mangled_name n)
-        (value_printer (Nonterminal.mangled_name n) (Nonterminal.attributes n))
+        Fmt.pf ppf "    | N N_%s -> %a\n"
+          (Nonterminal.mangled_name n)
+          value_printer (Nonterminal.mangled_name n, Nonterminal.attributes n)
     | `START -> ()
   in
-  printf "let print_value (type a) : a %s.symbol -> a -> string = function\n"
+  Fmt.pf ppf "let print_value (type a) : a %s.symbol -> a -> string = function\n"
     menhir;
   Terminal.iter case_t;
   Nonterminal.iter case_n
 
-let print_token () =
+let print_token ppf =
   let case t =
     match Terminal.kind t with
     | `REGULAR | `EOF ->
-      printf "  | %s%s -> print_value (%s.T T_%s) %s\n"
+      Fmt.pf ppf "    | %s%s -> print_value (T T_%s) %s\n"
         (Terminal.name t)
         (match Terminal.typ t with | None -> "" | Some _typ -> " v")
-        menhir
         (Terminal.name t)
         (match Terminal.typ t with | None -> "()" | Some _typ -> "v")
     | `PSEUDO | `ERROR -> ()
   in
-  printf "let print_token = function\n";
+  Fmt.pf ppf "let print_token = function\n";
   Terminal.iter case
 
-let print_token_of_terminal () =
+let print_token_of_terminal ppf =
   let case t =
     match Terminal.kind t with
     | `REGULAR | `EOF ->
-      printf "  | T_%s -> %s%s\n"
+      Fmt.pf ppf "    | T_%s -> %s%s\n"
         (Terminal.name t)
         (Terminal.name t) (if Terminal.typ t <> None then " v" else "")
     | `ERROR ->
-      printf "  | T_%s -> assert false\n"
+      Fmt.pf ppf "    | T_%s -> assert false\n"
         (Terminal.name t)
     | `PSEUDO -> ()
   in
-  printf
+  Fmt.pf ppf
     "let token_of_terminal (type a) (t : a %s.terminal) (v : a) : token =\n\
-    \  match t with\n"
+    \    match t with\n"
     menhir;
   Terminal.iter case
 
+let emit ppf =
+  Gu.pp_extension_module ppf begin fun ppf ->
+    Fmt.pf ppf "%t@\n" Gu.pp_grammar_open;
+    Fmt.pf ppf "%t@\n" Gu.pp_header;
+    print_symbol ppf;
+    Fmt.cut ppf ();
+    print_value ppf;
+    Fmt.cut ppf ();
+    print_token ppf;
+    Fmt.cut ppf ();
+    print_token_of_terminal ppf;
+  end
+
 let () =
-  print_header ();
-  print_newline ();
-  print_symbol ();
-  print_newline ();
-  print_value ();
-  print_newline ();
-  print_token ();
-  print_newline ();
-  print_token_of_terminal ()
+  emit Fmt.stdout

@@ -1,4 +1,3 @@
-%{
 (**************************************************************************)
 (*                                                                        *)
 (*                        SuperBOL OSS Studio                             *)
@@ -11,6 +10,9 @@
 (* of this source tree.                                                   *)
 (*                                                                        *)
 (**************************************************************************)
+
+%parameter <Overlay_manager: Cobol_preproc.Src_overlay.MANAGER>
+%{
 
 open Grammar_utils
 open Cobol_ptree
@@ -26,10 +28,10 @@ let split_last l =
   List.(let rl = rev l in hd rl, rev (tl rl))
 
 let srcloc location_limits =
-  Grammar_utils.Overlay_manager.join_limits location_limits
+  (* Grammar_utils. *)Overlay_manager.join_limits location_limits
 
 let with_loc token location_limits =
-  token &@ Grammar_utils.Overlay_manager.join_limits location_limits
+  token &@ (* Grammar_utils. *)Overlay_manager.join_limits location_limits
 
 let dual_handler_none =
   { dual_handler_pos = []; dual_handler_neg = [] }

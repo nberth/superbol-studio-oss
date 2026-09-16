@@ -212,6 +212,21 @@ module NEL = struct
       | x :: tl -> aux (List.cons (f x) acc) tl
     in
     aux [] l
+  let map_of_list ~f (l: _ list) =
+    let rec aux acc = function
+      | [] -> Pretty.invalid_arg "map_of_list"
+      | [x] -> of_rev_list (List.cons (f x) acc)
+      | x :: tl -> aux (List.cons (f x) acc) tl
+    in
+    aux [] l
+  let rev_map_of_list ~f =
+    let rec aux acc = function
+      | [] -> acc
+      | x :: tl -> aux (f x :: acc) tl
+    in
+    function
+    | [] -> Pretty.invalid_arg "rev_map_of_list"
+    | last :: tl -> aux (One (f last)) tl
   let exists ~f l =
     let rec aux = function
       | One x -> f x
@@ -221,6 +236,11 @@ module NEL = struct
   let pp ?fsep ?fopen ?fclose pp_e ppf list =
     Pretty.list ?fopen ?fsep ?fclose pp_e ppf (to_list list)
 end
-type 'a nel = 'a NEL.t
-let pp_nel pp = NEL.pp pp
-let compare_nel = NEL.compare
+
+module TYPES = struct
+  type 'a nel = 'a NEL.t
+  let pp_nel pp = NEL.pp pp
+  let compare_nel = NEL.compare
+end
+
+include TYPES

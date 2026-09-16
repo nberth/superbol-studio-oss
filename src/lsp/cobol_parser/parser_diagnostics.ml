@@ -12,12 +12,12 @@
 (**************************************************************************)
 
 open Parser_diagnostics_types
-
-open Cobol_common.Srcloc.TYPES
+open Grammar_types
 
 open Cobol_common.Srcloc.INFIX
 
 module LIST = Cobol_common.Basics.LIST
+module NEL = Cobol_common.Basics.NEL
 
 let pp_malformed_stuff ppf = function
   | Alphanumeric_literal ->
@@ -78,26 +78,18 @@ let pp_error ppf = function
   | Unterminated { stuff; _ } ->
       Pretty.print ppf "Unterminated@ %a" pp_unterminated_stuff stuff
 
-type customizable_diagnostic =
-  | Implementation_pending of string
-  | Missing_tokens of
-      (Grammar.MenhirInterpreter.xsymbol, Grammar.token)
-        Recovery_types.generic_insertion list
-  | Invalid_syntax
-  | Fallthrough_to_when_other
-  | No_when_branch_before_when_other
-  | Exec_block_diagnostic of Cobol_common.Exec_block.diagnostic
+let pp_printable_insertions ppf insertions =
+  NEL.pp ~fsep:"@ " ~fopen:"" ~fclose:""
+    Fmt.(Recovery_printer.pp_generic_insertion
+           (using Grammar_printer.print_symbol string)
+           (using Text_lexer.string_of_token string)) ppf insertions
 
 let pp_customizable_diagnostic ppf = function
   | Implementation_pending descr ->
       Pretty.print ppf "Ignored@ %a@ (implementation@ pending)"
         Pretty.text descr
-  | Missing_tokens replacements ->
-      Pretty.print ppf "Missing@ %a"
-        Fmt.(list ~sep:sp
-               (Recovery_printer.pp_generic_insertion
-                  (using Grammar_printer.print_symbol string)
-                  (using Text_lexer.string_of_token string))) replacements
+  | Missing_tokens insertions ->
+      Pretty.print ppf "Missing@ %a" pp_printable_insertions insertions
   | Invalid_syntax ->
       Pretty.print ppf "Invalid@ syntax"
   | Fallthrough_to_when_other ->
@@ -108,17 +100,6 @@ let pp_customizable_diagnostic ppf = function
   | Exec_block_diagnostic d ->
       Cobol_common.Exec_block.pp_diagnostic ppf d
 
-type custom =
-  {
-    severity: Cobol_common.Diagnostics.severity;
-    loc: srcloc option;
-    diag: customizable_diagnostic;
-  }
-type diagnostics =
-  {
-    errors: error list;
-    customs: custom list;
-  }
 type t = diagnostics
 let none =
   {

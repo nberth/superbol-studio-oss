@@ -16,20 +16,15 @@ open Cobol_common.Srcloc.INFIX
 open Parser_options                               (* import types for options *)
 open Parser_outputs                               (* import types for outputs *)
 open Parser_diagnostics_types
+open Grammar_types
 
 module LIST = Cobol_common.Basics.LIST
+module NEL = Cobol_common.Basics.NEL
 module OUT = Parser_outputs
 module DIAGS = Parser_diagnostics
 module TOK = Grammar_tokens
 
 module Tokzr = Text_tokenizer
-module Overlay_manager = Grammar_utils.Overlay_manager
-module Grammar_interpr = Grammar.MenhirInterpreter
-module Grammar_recovery =
-  Recovery.Make (Grammar_interpr) (struct
-    include Grammar_recover
-    include Grammar_printer
-  end)
 
 let empty_insertion: Grammar_recovery.insertion -> bool = function
   | Symbol s -> Grammar_printer.print_symbol s = ""
@@ -76,6 +71,22 @@ type 'm rewindable_parsing
 
 (* --- *)
 
+module type ENTRY_POINTS = sig
+  type 'x entry
+end
+
+module type PARSER = sig
+  exception Error
+
+  (* The incremental API. *)
+  module MenhirInterpreter: MenhirLib.IncrementalEngine.INCREMENTAL_ENGINE
+    with type token = TOK.token
+
+  (* The entry point(s) to the incremental API. *)
+  module Incremental: ENTRY_POINTS with type
+    'x entry := Lexing.position -> 'x MenhirInterpreter.checkpoint
+end
+
 (** State of the parser.
 
     In ['m state], the ['m] parameter denotes the ability of the parser to
@@ -108,6 +119,7 @@ and 'm preproc =
 (** Part of the parser state that changes very rarely, if at all. *)
 and 'm persist =
   {
+    (* g: (module PARSER); *)
     leftmost_limit: Cobol_preproc.Src_overlay.limit;
     tokenizer_memory: 'm memory;
     recovery: recovery;
@@ -317,7 +329,8 @@ let report_syntax_hints_n_error ps
           ps
       | insertions, raw_pos ->
           let loc = Overlay_manager.join_limits (raw_pos, raw_pos) in
-          add_diag ps Hint ~loc (Missing_tokens insertions)
+          (* let insertions = insertions_for_diagnostics insertions in *)
+          add_diag ps Hint ~loc (Missing_tokens (NEL.of_list insertions))
     end ps (List.rev hints)
   in
   (* Generate a global error or warning if necessary *)

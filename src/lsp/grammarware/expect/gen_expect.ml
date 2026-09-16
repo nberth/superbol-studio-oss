@@ -64,7 +64,13 @@ let pp_match_cases ppf pp_key pp_value default l =
 
 (* --- *)
 
-include MenhirSdk.Cmly_read.Read (struct let filename = cmlyname end)
+module Gu =
+  Grammarware_utils.Make (struct
+    let name = "expect"
+    let filename = cmlyname
+  end)
+
+open Gu.Grammar
 
 type completion_entry =
   | K of terminal NEL.t
@@ -577,20 +583,17 @@ end
 
 
 let () =
-  let ppf = Fmt.stdout in
-  Fmt.pf ppf
-    "(* Caution: this file was automatically generated from %s; do not edit *)\
-     \nmodule NEL = %s\
-     \nmodule Menhir = Grammar.MenhirInterpreter\
-     \nopen %s@\n\n"
-    cmlyname !nel_module !external_tokens;
-
-  emit_completion_entry ppf;
-  emit_action_in ppf;
-  emit_completion_entries_in_env ppf;
-  emit_eager_completion_entries_in_env ppf;
-  emit_default_nonterminal_value ppf;
-
-  (* DEBUG.emit_firsts ppf; *)
-  (* DEBUG.emit_state_productions ppf; *)
-  ()
+  Gu.pp_extension_module Fmt.stdout begin fun ppf ->
+    Fmt.pf ppf "%t@\n" Gu.pp_grammar_open;
+    Fmt.pf ppf "module NEL = %s@\n" !nel_module;
+    Fmt.pf ppf "module Menhir = Grammar.MenhirInterpreter@\n";
+    Gu.pp_grammar_functor_application ppf "Grammar_printer";
+    Fmt.pf ppf "open %s@\n\n" !external_tokens;
+    emit_completion_entry ppf;
+    emit_action_in ppf;
+    emit_completion_entries_in_env ppf;
+    emit_eager_completion_entries_in_env ppf;
+    emit_default_nonterminal_value ppf;
+    (* DEBUG.emit_firsts ppf; *)
+    (* DEBUG.emit_state_productions ppf; *)
+  end

@@ -11,24 +11,26 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Grammar
-open MenhirInterpreter
+module Make (Overlay_manager: Cobol_preproc.Src_overlay.MANAGER) : sig
+  open Grammar.Make (Overlay_manager)
+  open MenhirInterpreter
 
-type action =
-  | Abort
-  | R of int
-  | S : 'a symbol -> action
-  | Sub of action list
+  type action =
+    | Abort
+    | R of int
+    | S : 'a symbol -> action
+    | Sub of action list
 
-type decision =
-  | Nothing
-  | One of action list
-  | Select of (int -> action list)
+  type decision =
+    | Nothing
+    | One of action list
+    | Select of (int -> action list)
 
-val can_pop : 'a Grammar.MenhirInterpreter.terminal -> bool
-val depth : int array
-val recover : int -> decision
-val default_value :
-  pos:Lexing.position
-  -> 'a Grammar.MenhirInterpreter.symbol
-  -> 'a
+  val can_pop : 'a terminal -> bool
+  val depth : int array
+  val recover : int -> decision
+  val default_value :
+    pos:Lexing.position
+    -> 'a symbol
+    -> 'a
+end
