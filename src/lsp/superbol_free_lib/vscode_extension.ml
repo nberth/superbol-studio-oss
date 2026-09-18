@@ -639,6 +639,10 @@ let commands =
       ~command:"superbol.cfg.open.arc"
       ~title:"Show Control-flow as an Arc-diagram"
       ~category:"SuperBOL";
+    Manifest.command ()
+      ~command:"superbol.modelExplorer.open"
+      ~title:"Open Model Explorer (demo graph)"
+      ~category:"SuperBOL";
   ]
 
 let menus =

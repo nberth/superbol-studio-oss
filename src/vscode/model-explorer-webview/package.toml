@@ -1,19 +1,25 @@
 
 # name of package
-name = "superbol-vscode-lib"
-skeleton = "js_library"
+name = "model-explorer-webview"
+skeleton = "js_program"
 
 # version if different from project version
 # version = "0.1.0"
 
 # synopsis if different from project synopsis
-# synopsis = ...
+synopsis = "Webview script driving the model-explorer visualizer custom element"
 
 # description if different from project description
-# description = ...
+description = """
+js_of_ocaml executable meant to run as webview content: creates the
+<model-explorer-visualizer> custom element (via the model-explorer-js-stubs
+bindings) and bridges it to the extension host through
+acquireVsCodeApi()/postMessage, the same way assets/cfg-dot.js does for the
+CFG explorer webview.
+"""
 
 # kind is either "library", "program" or "virtual"
-kind = "library"
+kind = "program"
 
 # authors if different from project authors
 # authors = [ "Me <me@metoo.org>" ]
@@ -24,13 +30,6 @@ gen-version = "version.ml"
 # supported file generators are "ocamllex", "ocamlyacc" and "menhir"
 # default is [ "ocamllex", "ocamlyacc" ]
 # generators = [ "ocamllex", "menhir" ]
-
-# menhir options for the package
-#Example:
-#version = "2.0"
-#parser = { modules = ["parser"]; tokens = "Tokens" }
-#tokens = { modules = ["tokens"]}
-# menhir = ...
 
 # whether all modules should be packed/wrapped (default is true)
 # pack-modules = false
@@ -46,36 +45,15 @@ gen-version = "version.ml"
 preprocess = "pps gen_js_api.ppx"
 
 # files to skip while updating at package level
-skip = [ "main.ml" ]
+skip = []
 
 # package library dependencies
 #   [dependencies]
 #   ez_file = ">=0.1 <1.3"
 #   base-unix = { libname = "unix", version = ">=base" }
 [dependencies]
-interop-js-stubs = "version"
-js_of_ocaml = ">=4" # build
-jsonoo = "0.2.1"
 model-explorer-js-stubs = "version"
-node-js-stubs = "version"
-promise_jsoo = "0.3.1"
-vscode-js-stubs = "version"
-vscode-languageclient-js-stubs = "version"
 
 # package tools dependencies
 [tools]
 js_of_ocaml-ppx = ">=4"
-
-# package fields (depends on package skeleton)
-#Examples:
-#  dune-stanzas = "(preprocess (pps ppx_deriving_encoding))"
-#  dune-libraries = "bigstring"
-#  dune-trailer = "(install (..))"
-#  opam-trailer = "pin-depends: [..]"
-#  no-opam-test = "yes"
-#  no-opam-doc = "yes"
-#  gen-opam = "some" | "all"
-#  dune-stanzas = "(flags (:standard (:include linking.sexp)))"
-#  static-clibs = "unix"
-[fields]
-# ...

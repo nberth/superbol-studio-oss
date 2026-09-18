@@ -5,7 +5,7 @@ version:0.9.0
 
 # hash of toml configuration files
 # used for generation of all files
-df856827e76c9202332478140808cefc:.
+5e0b6189d245a6930b50acd9eb09e6af:.
 # end context for .
 
 # begin context for .github/workflows/workflow.yml
@@ -15,12 +15,12 @@ df856827e76c9202332478140808cefc:.
 
 # begin context for .gitignore
 # file .gitignore
-6012555ec8a60d4de58c8d904276884e:.gitignore
+8d460bd233681fcf27dc4cfd3591d29f:.gitignore
 # end context for .gitignore
 
 # begin context for Makefile
 # file Makefile
-9329cd139176803f14ec41f51bc9c2a6:Makefile
+88c8576fcd29481a181f37b75acb8f4e:Makefile
 # end context for Makefile
 
 # begin context for docs/README.txt
@@ -50,7 +50,7 @@ c8281f46ba9a11d0b61bc8ef67eaa357:docs/style.css
 
 # begin context for dune-project
 # file dune-project
-1c7721d6c63c706bcad8ab4199b53447:dune-project
+cb7adf21642a17540c1e99a8c6ac1694:dune-project
 # end context for dune-project
 
 # begin context for opam/autofonce.opam
@@ -204,6 +204,16 @@ c6e17cecab67144be4c64725e7feddab:opam/ezr_toml.opam
 964478be6bea34f76f89a1e786449320:opam/interop-js-stubs.opam
 # end context for opam/interop-js-stubs.opam
 
+# begin context for opam/model-explorer-js-stubs.opam
+# file opam/model-explorer-js-stubs.opam
+a607a4d7c13311dbe8a7cc79c5a5c8d6:opam/model-explorer-js-stubs.opam
+# end context for opam/model-explorer-js-stubs.opam
+
+# begin context for opam/model-explorer-webview.opam
+# file opam/model-explorer-webview.opam
+909cd4c6aa7daf5ef6564feaf0cc76b2:opam/model-explorer-webview.opam
+# end context for opam/model-explorer-webview.opam
+
 # begin context for opam/node-js-stubs.opam
 # file opam/node-js-stubs.opam
 017b6fa6428cb2f90bb78ed9e7fe9f2a:opam/node-js-stubs.opam
@@ -246,7 +256,7 @@ a034879e862514ca15e74e5bb1e42d7c:opam/superbol-studio-oss.opam
 
 # begin context for opam/superbol-vscode-lib.opam
 # file opam/superbol-vscode-lib.opam
-70a21fe12bd06b2dcd597c1ec9b8ac44:opam/superbol-vscode-lib.opam
+a1e1eacc3dcdd7a2775abd06e277476d:opam/superbol-vscode-lib.opam
 # end context for opam/superbol-vscode-lib.opam
 
 # begin context for opam/superbol-vscode-oss.opam
@@ -812,7 +822,7 @@ d185c1f3bd851d1f329c33cf7e5f0d1f:src/tramabol/tramabol/dune
 
 # begin context for src/vendor/ez_toml/dune
 # file src/vendor/ez_toml/dune
-0778f52cc1225df698a5fcd42310b6ff:src/vendor/ez_toml/dune
+5b0adf2706d3d163581192a5fe88cf03:src/vendor/ez_toml/dune
 # end context for src/vendor/ez_toml/dune
 
 # begin context for src/vendor/ez_toml/index.mld
@@ -834,6 +844,16 @@ e088a3c55f477e639db0362f02455e24:src/vendor/vscode-ocaml-platform/src-bindings/i
 # file src/vendor/vscode-ocaml-platform/src-bindings/interop/version.mlt
 1af92d248bdb11b98ed03eb59c6831e5:src/vendor/vscode-ocaml-platform/src-bindings/interop/version.mlt
 # end context for src/vendor/vscode-ocaml-platform/src-bindings/interop/version.mlt
+
+# begin context for src/vendor/vscode-ocaml-platform/src-bindings/model_explorer/dune
+# file src/vendor/vscode-ocaml-platform/src-bindings/model_explorer/dune
+e7dcda00c3534f085f1604af7548c1d5:src/vendor/vscode-ocaml-platform/src-bindings/model_explorer/dune
+# end context for src/vendor/vscode-ocaml-platform/src-bindings/model_explorer/dune
+
+# begin context for src/vendor/vscode-ocaml-platform/src-bindings/model_explorer/version.mlt
+# file src/vendor/vscode-ocaml-platform/src-bindings/model_explorer/version.mlt
+1af92d248bdb11b98ed03eb59c6831e5:src/vendor/vscode-ocaml-platform/src-bindings/model_explorer/version.mlt
+# end context for src/vendor/vscode-ocaml-platform/src-bindings/model_explorer/version.mlt
 
 # begin context for src/vendor/vscode-ocaml-platform/src-bindings/node/dune
 # file src/vendor/vscode-ocaml-platform/src-bindings/node/dune
@@ -865,9 +885,19 @@ a66598082ef653ebcf0ce0fd10729a0d:src/vendor/vscode-ocaml-platform/src-bindings/v
 1af92d248bdb11b98ed03eb59c6831e5:src/vendor/vscode-ocaml-platform/src-bindings/vscode_languageclient/version.mlt
 # end context for src/vendor/vscode-ocaml-platform/src-bindings/vscode_languageclient/version.mlt
 
+# begin context for src/vscode/model-explorer-webview/dune
+# file src/vscode/model-explorer-webview/dune
+9c7f425bd38338d94df1db5f56fd95b4:src/vscode/model-explorer-webview/dune
+# end context for src/vscode/model-explorer-webview/dune
+
+# begin context for src/vscode/model-explorer-webview/version.mlt
+# file src/vscode/model-explorer-webview/version.mlt
+1af92d248bdb11b98ed03eb59c6831e5:src/vscode/model-explorer-webview/version.mlt
+# end context for src/vscode/model-explorer-webview/version.mlt
+
 # begin context for src/vscode/superbol-vscode-lib/dune
 # file src/vscode/superbol-vscode-lib/dune
-2b3e504969f971e5138555ccc9f6a649:src/vscode/superbol-vscode-lib/dune
+93b2dc2337f5a11ee414cd2b52b07611:src/vscode/superbol-vscode-lib/dune
 # end context for src/vscode/superbol-vscode-lib/dune
 
 # begin context for src/vscode/superbol-vscode-lib/version.mlt
