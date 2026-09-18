@@ -41,6 +41,7 @@
    (vscode-js-stubs (= :version))
    (promise_jsoo (and (>= 0.3.1) (< 1.0.0)))
    (node-js-stubs (= :version))
+   (model-explorer-js-stubs (= :version))
    (jsonoo (and (>= 0.2.1) (< 1.0.0)))
    (js_of_ocaml ( >= 4 ))
    (interop-js-stubs (= :version))
@@ -160,6 +161,46 @@
   )
   (allow_empty)
 
+ )
+
+(package
+ (name model-explorer-js-stubs)
+ (synopsis "gen_js_api bindings for the model-explorer visualizer custom element")
+ (description "gen_js_api bindings for the <model-explorer-visualizer> custom element,\npublished as the \"ai-edge-model-explorer-visualizer\" npm package\n(https://github.com/google-ai-edge/model-explorer). Meant to be used from\nOCaml compiled with js_of_ocaml and run as webview content.\n")
+ 
+  (sites
+    
+  )
+
+ (depends
+   (ocaml (>= 4.14.0))
+   (js_of_ocaml ( >= 4 ))
+   (interop-js-stubs (= :version))
+   (gen_js_api (and (>= 1.1.1) (< 2.0.0)))
+   (js_of_ocaml-ppx ( >= 4 ))
+   odoc
+   (dune (and ( >= 3.17.0 )( < 3.19.0 )))
+  )
+  (allow_empty)
+
+ )
+
+(package
+ (name model-explorer-webview)
+ (synopsis "Webview script driving the model-explorer visualizer custom element")
+ (description "js_of_ocaml executable meant to run as webview content: creates the\n<model-explorer-visualizer> custom element (via the model-explorer-js-stubs\nbindings) and bridges it to the extension host through\nacquireVsCodeApi()/postMessage, the same way assets/cfg-dot.js does for the\nCFG explorer webview.\n")
+ 
+  (sites
+    
+  )
+
+ (depends
+   (ocaml (>= 4.14.0))
+   (model-explorer-js-stubs (= :version))
+   (js_of_ocaml-ppx ( >= 4 ))
+   odoc
+   (dune (and ( >= 3.17.0 )( < 3.19.0 )))
+  )
  )
 
 (package

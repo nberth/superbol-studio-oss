@@ -59,6 +59,11 @@
         "command": "superbol.cfg.open.arc",
         "title": "Show Control-flow as an Arc-diagram",
         "category": "SuperBOL"
+      },
+      {
+        "command": "superbol.modelExplorer.open",
+        "title": "Open Model Explorer (demo graph)",
+        "category": "SuperBOL"
       }
     ],
     "configuration": {

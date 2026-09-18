@@ -50,6 +50,14 @@ let _open_cfg_arc =
       ()
     end
 
+let _open_model_explorer =
+  command "superbol.modelExplorer.open" @@ Instance
+    begin fun instance ~args:_ ->
+      let _ : unit Promise.t =
+        Superbol_model_explorer.open_model_explorer instance in
+      ()
+    end
+
 let _editor_action_findReferences =
   let command_name = "superbol.editor.action.findReferences"  in
   command command_name @@ Instance

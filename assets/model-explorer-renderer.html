@@ -1,0 +1,39 @@
+<!-- ----------------------------------------------------------------------- -->
+<!--                                                                         -->
+<!--                        SuperBOL OSS Studio                              -->
+<!--                                                                         -->
+<!--                                                                         -->
+<!--  Copyright (c) 2025 OCamlPro SAS                                        -->
+<!--                                                                         -->
+<!--  All rights reserved.                                                   -->
+<!--  This source code is licensed under the MIT license found in the        -->
+<!--  LICENSE.md file in the root directory of this source tree.             -->
+<!--                                                                         -->
+<!-- ----------------------------------------------------------------------- -->
+
+<!-- Base html file for the Model Explorer webview.
+     `Superbol_model_explorer.build_html` appends, after this file's content:
+       - an inline `<script>` setting `window.modelExplorer` (asset paths);
+       - `<script src="vendor/model-explorer/main_browser.js">`, which
+         registers the `<model-explorer-visualizer>` custom element;
+       - `<script src="model-explorer.js">`, this project's own webview
+         script (built from src/vscode/model-explorer-webview/), which
+         creates that element and drives it -- see
+         `Model_explorer_webview`. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    html, body, model-explorer-visualizer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+</body>
+</html>
