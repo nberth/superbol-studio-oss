@@ -40,6 +40,7 @@
    (vscode-languageclient-js-stubs (= :version))
    (vscode-js-stubs (= :version))
    (promise_jsoo (and (>= 0.3.1) (< 1.0.0)))
+   (ocamlgraph (and (>= 2.1.0) (< 3.0.0)))
    (node-js-stubs (= :version))
    (model-explorer-js-stubs (= :version))
    (jsonoo (and (>= 0.2.1) (< 1.0.0)))

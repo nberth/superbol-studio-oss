@@ -10,3 +10,7 @@
 	path = import/gnucobol4
 	url = https://github.com/OcamlPro/gnucobol.git
 	branch = gitside-master
+[submodule "vendors/model-explorer"]
+	path = vendors/model-explorer
+	url = https://github.com/nberth/model-explorer.git
+	branch = ui-customizations

@@ -58,6 +58,7 @@ js_of_ocaml = ">=4" # build
 jsonoo = "0.2.1"
 model-explorer-js-stubs = "version"
 node-js-stubs = "version"
+ocamlgraph = "2.1.0"
 promise_jsoo = "0.3.1"
 vscode-js-stubs = "version"
 vscode-languageclient-js-stubs = "version"

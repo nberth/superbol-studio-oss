@@ -58,6 +58,35 @@ end
 
 let document_body () = Ojs.get_prop_ascii (Ojs.variable "document") "body"
 
+(** {2 Visualizer configuration}
+
+    The visualizer's own vocabulary ("op", "layer", "inputs"/"outputs") comes
+    from its neural-network-model origins and doesn't fit a COBOL CFG: "op"
+    nodes and "layer" (group) nodes are renamed to something CFG-appropriate,
+    and the inputs/outputs sections are hidden outright, since
+    {!Superbol_model_explorer}'s dot-to-graph converter never populates
+    per-node port metadata. *)
+let visualizer_config () =
+  let legendConfig =
+    ME.LegendConfig.make ()
+      ~renameOpTo:"SECTION"
+      ~renameLayerTo:"SECTION OR PARAGRAPH"
+      ~hideInputs:true
+      ~hideOutputs:true
+  in
+  let viewOnNodeConfig =
+    ME.ViewOnNodeConfig.make ()
+      ~renameOpNodeIdTo:"SECTION NAME"
+      ~renameOpNodeAttributesTo:"Attributes"
+      ~hideOpNodeInputs:true
+      ~hideOpNodeOutputs:true
+      ~hideOpNodeAttributes:true
+      ~hideLayerNodeAttributes:true
+  in
+  ME.VisualizerConfig.make ~legendConfig ~viewOnNodeConfig ()
+    ~renameNodeInfoOpNameTo:"SECTION"
+    ~hideInfoPanel:true
+
 (** {2 Outgoing messages} (webview -> extension host) *)
 
 let send_ready () =
@@ -95,6 +124,7 @@ let on_extension_message visualizer data =
 
 let main () =
   let visualizer = ME.Visualizer.create () in
+  ME.Visualizer.set_config visualizer (visualizer_config ());
   ME.Visualizer.append_to ~parent:(document_body ()) visualizer;
   ME.Visualizer.on visualizer
     (`SelectedNodeChanged (send_node_info ~type_:"node_selected"));

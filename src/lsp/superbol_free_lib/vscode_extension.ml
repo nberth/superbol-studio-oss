@@ -641,7 +641,7 @@ let commands =
       ~category:"SuperBOL";
     Manifest.command ()
       ~command:"superbol.modelExplorer.open"
-      ~title:"Open Model Explorer (demo graph)"
+      ~title:"Open CFG Explorer"
       ~category:"SuperBOL";
   ]
 
