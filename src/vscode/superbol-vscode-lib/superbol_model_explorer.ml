@@ -14,6 +14,7 @@
 
 module VS = Vscode
 module ME = Model_explorer
+module Dot = Superbol_dot
 
 let read_whole_file filename =
   (* open_in_bin works correctly on Unix and Windows *)
@@ -22,9 +23,11 @@ let read_whole_file filename =
     ~finally: (fun () -> close_in ch)
 
 (* DEMO DATA *)
-(* TODO(model-explorer): replace with a real graph obtained from the LSP
-   server, once a request analogous to [superbol/getCFG] exists to produce
-   [Model_explorer.GraphCollection.t] from an actual COBOL program. *)
+(* Used as a fallback by [open_model_explorer] when there is no active COBOL
+   editor to pull a real graph from -- see the "DOT -> MODEL EXPLORER
+   CONVERSION" and "GRAPH FROM LSP" sections below for the real path, which
+   mirrors [Superbol_cfg_explorer]'s [superbol/getPossibleCFG] /
+   [superbol/getCFG] request pair. *)
 
 let demo_graph_collections () =
   let node ?(incomingEdges = []) ~id ~label () =
@@ -42,6 +45,90 @@ let demo_graph_collections () =
   in
   [ ME.GraphCollection.make ~label:"Demo"
       ~graphs:[ME.Graph.make ~id:"demo" ~nodes ()] () ]
+
+(* DOT -> MODEL EXPLORER CONVERSION *)
+(* [Lsp_cfg.to_dot_string] (see [src/lsp/cobol_lsp/lsp_cfg.ml]) renders a
+   COBOL CFG as a graphviz dot string, using [ocamlgraph]'s
+   [Graph.Graphviz.Dot] functor; [Superbol_dot] parses the (flat,
+   subgraph-free) subset of dot that printer emits, and the functions below
+   turn the result into the [Model_explorer.GraphCollection.t] shape the
+   visualizer expects. *)
+
+(* Turns the record-shaped label (e.g. ["{PARA-A|PARA-B|PARA-C}"]) that
+   [Lsp_cfg]'s dot printer emits for a [Collapsed] CFG node into a plain,
+   multi-line label -- the model-explorer visualizer has no notion of dot's
+   record shapes or ports. *)
+let plain_label_of_dot_label label =
+  let len = String.length label in
+  if len >= 2 && label.[0] = '{' && label.[len - 1] = '}'
+  then String.sub label 1 (len - 2) |> String.map (function '|' -> '\n' | c -> c)
+  else label
+
+(* All dot attributes but [label] are surfaced as-is (e.g. ["shape"],
+   ["style"]) as node attributes, so they remain visible (in the info panel)
+   even though the visualizer doesn't interpret them the way dot would. *)
+let node_attrs attrs =
+  List.filter_map
+    (fun (key, value) ->
+       if String.equal key "label" then None
+       else Some (ME.NodeAttribute.make ~key ~value:(`String value)))
+    attrs
+
+let edge_metadata = function
+  | [] -> None
+  | attrs -> Some (ME.Dict.of_alist attrs)
+
+(* Model-explorer graphs record edges as the [incomingEdges] of their target
+   node, unlike dot's flat edge-statement list: index dot edges by their
+   destination first. *)
+let incoming_edges_by_dst (dot : Dot.t) =
+  let table = Hashtbl.create 16 in
+  List.iter
+    (fun { Dot.src; dst; attrs } ->
+       let edge =
+         ME.IncomingEdge.make ~sourceNodeId:src ~sourceNodeOutputId:"0"
+           ~targetNodeInputId:"0" ?metadata:(edge_metadata attrs) ()
+       in
+       Hashtbl.replace table dst
+         (edge :: Option.value ~default:[] (Hashtbl.find_opt table dst)))
+    dot.edges;
+  table
+
+let graph_node_of_dot_node ~incoming_edges ({ id; attrs } : Dot.node) =
+  let label =
+    match List.assoc_opt "label" attrs with
+    | Some label -> plain_label_of_dot_label label
+    | None -> id
+  in
+  let incomingEdges =
+    List.rev (Option.value ~default:[] (Hashtbl.find_opt incoming_edges id))
+  in
+  ME.GraphNode.make ~id ~label ~namespace:"" ~attrs:(node_attrs attrs)
+    ~incomingEdges ()
+
+let graph_of_dot ~id (dot : Dot.t) =
+  let incoming_edges = incoming_edges_by_dst dot in
+  ME.Graph.make ~id
+    ~nodes:(List.map (graph_node_of_dot_node ~incoming_edges) dot.nodes) ()
+
+(* [Graph.Dot.parse_dot_ast] (which {!Superbol_dot.parse_file} wraps) only
+   reads from disk, so a dot string obtained over the LSP (as
+   [string_repr_dot]) is written to a scratch file, under the extension's own
+   storage directory, before being parsed. *)
+let write_temp_dot_file ~context dot_string =
+  let dir = VS.Uri.fsPath (VS.ExtensionContext.globalStorageUri context) in
+  Node.Fs.mkdirSync dir ~recursive:true;
+  let path = Node.Path.join [dir; "model-explorer-cfg.dot"] in
+  Node.Fs.writeFileSync path dot_string;
+  path
+
+let graph_collections_of_dot ~context ~label ~id dot_string =
+  let path = write_temp_dot_file ~context dot_string in
+  Fun.protect
+    ~finally:(fun () -> try Node.Fs.unlinkSync path with _ -> ())
+    (fun () ->
+       [ME.GraphCollection.make ~label
+          ~graphs:[graph_of_dot ~id (Dot.parse_file path)] ()])
 
 (* HTML / VENDORED ASSETS *)
 
@@ -100,8 +187,9 @@ let build_html ~webview ~extension_uri html_template =
        (VS.Uri.joinPath extension_uri ~pathSegments:["assets"; "model-explorer.js"]))
 
 (* WEBVIEW MANAGEMENT *)
-(* Unlike [Superbol_cfg_explorer], there is a single panel: the demo graph
-   isn't tied to any particular COBOL source file. *)
+(* Unlike [Superbol_cfg_explorer], there is a single panel: the graph shown
+   isn't tied to any particular COBOL source file, only to whichever program
+   was last picked (or the demo graph, absent one). *)
 
 type stored_data =
   { webview_panel: VS.WebviewPanel.t;
@@ -152,9 +240,41 @@ let create_or_reveal ~extension_uri =
                                ~pathSegments:["assets"]];
       webview_panel, true
 
-let open_model_explorer _instance =
+let open_with_graph_collections ~extension_uri html_template graph_collections =
+  let webview_panel, is_new = create_or_reveal ~extension_uri in
+  let webview = VS.WebviewPanel.webview webview_panel in
+  panel := Some { webview_panel; graph_collections };
+  let _ : VS.Disposable.t =
+    VS.WebView.onDidReceiveMessage webview ()
+      ~listener:(on_message ~graph_collections webview)
+      ~thisArgs:Ojs.null ~disposables:[]
+  in
+  if is_new
+  then VS.WebView.set_html webview
+      (build_html ~webview ~extension_uri html_template)
+  else post_graph_collections webview graph_collections
+
+(* GRAPH FROM LSP *)
+(* Mirrors [Superbol_cfg_explorer]'s [superbol/getPossibleCFG] /
+   [superbol/getCFG] request pair, using [Superbol_instance.lsp_request]
+   (which reports [Client_not_running] as an [Error], rather than letting the
+   request promise reject, when there is no LSP client running). *)
+
+let get_possible_cfg_names instance ~uri =
+  Superbol_instance.lsp_request instance ~meth:"superbol/getPossibleCFG"
+    ~data:Jsonoo.Encode.(object_ ["uri", string (VS.Uri.toString uri ())])
+  |> Promise.Result.map Jsonoo.Decode.(list string)
+
+let get_cfg_dot instance ~uri ~name =
+  Superbol_instance.lsp_request instance ~meth:"superbol/getCFG"
+    ~data:Jsonoo.Encode.(object_
+        [ "uri", string (VS.Uri.toString uri ());
+          "name", string name ])
+  |> Promise.Result.map Jsonoo.Decode.(field "string_repr_dot" string)
+
+let open_model_explorer instance =
   let extension_uri =
-    VS.ExtensionContext.extensionUri (Superbol_instance.context _instance)
+    VS.ExtensionContext.extensionUri (Superbol_instance.context instance)
   in
   match get_html_template ~extension_uri with
   | Error e ->
@@ -163,17 +283,41 @@ let open_model_explorer _instance =
           ~message:("Unable to display Model Explorer: " ^ e) ()
       in Promise.return ()
   | Ok html_template ->
-      let graph_collections = demo_graph_collections () in
-      let webview_panel, is_new = create_or_reveal ~extension_uri in
-      let webview = VS.WebviewPanel.webview webview_panel in
-      panel := Some { webview_panel; graph_collections };
-      let _ : VS.Disposable.t =
-        VS.WebView.onDidReceiveMessage webview ()
-          ~listener:(on_message ~graph_collections webview)
-          ~thisArgs:Ojs.null ~disposables:[]
+      let show graph_collections =
+        open_with_graph_collections ~extension_uri html_template graph_collections;
+        Promise.return ()
       in
-      if is_new
-      then VS.WebView.set_html webview
-          (build_html ~webview ~extension_uri html_template)
-      else post_graph_collections webview graph_collections;
-      Promise.return ()
+      match Superbol_instance.current_document_uri () with
+      | None ->
+          (* Nothing to pull a real graph from: fall back to the demo one, so
+             the panel still shows something meaningful. *)
+          show (demo_graph_collections ())
+      | Some uri ->
+          get_possible_cfg_names instance ~uri |>
+          Promise.then_ ~fulfilled:begin function
+            | Error _ -> show (demo_graph_collections ())
+            | Ok names ->
+                VS.Window.showQuickPick ~items:names () |>
+                Promise.then_ ~fulfilled:begin function
+                  | None -> Promise.return ()
+                  | Some name ->
+                      get_cfg_dot instance ~uri ~name |>
+                      Promise.then_ ~fulfilled:begin function
+                        | Error error ->
+                            Superbol_printer.show_error_message (Error error)
+                        | Ok dot_string ->
+                            let context = Superbol_instance.context instance in
+                            match
+                              graph_collections_of_dot
+                                ~context ~label:name ~id:name dot_string
+                            with
+                            | graph_collections -> show graph_collections
+                            | exception Superbol_dot.Parse_error message ->
+                                let _ : _ option Promise.t =
+                                  VS.Window.showErrorMessage
+                                    ~message:("Unable to render Model Explorer \
+                                               graph: " ^ message) ()
+                                in Promise.return ()
+                      end
+                end
+          end

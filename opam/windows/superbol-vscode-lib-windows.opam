@@ -53,6 +53,7 @@ depends: [
   "dune" {>= "3.17.0"}
   "vscode-languageclient-js-stubs-windows" {= version}
   "vscode-js-stubs-windows" {= version}
+  "ocamlgraph-windows" {>= "2.1.0" & < "3.0.0"}
   "node-js-stubs-windows" {= version}
   "model-explorer-js-stubs-windows" {= version}
   "interop-js-stubs-windows" {= version}
