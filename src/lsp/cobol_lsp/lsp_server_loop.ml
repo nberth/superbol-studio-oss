@@ -53,6 +53,8 @@ let default_extensions =
 let config
     ~(project_layout: Lsp_project.layout)
     ?(enable_caching = true)
+    ?cache_max_age
+    ?cache_max_size
     ?(enable_client_configs = false)
     ?(force_syntax_diagnostics = false)
     ?(fallback_storage_directory: string option)
@@ -83,6 +85,11 @@ let config
     cache_config = {
       cache_storage;
       cache_verbose = true;
+      cache_bounds =
+        if cache_max_age = None && cache_max_size = None
+        then Superbol_cache.Types.Never
+        else Superbol_cache.Types.Bounded { max_age = cache_max_age;
+                                            max_size = cache_max_size };
     };
     project_layout;
     enable_client_configs;
@@ -93,9 +100,10 @@ let config
     blocking (driven by standard input), and shutdown is triggered by a client
     request.  Returns [Ok ()] if the server ran and shut down properly, or
     [Error error_message] otherwise. *)
-let run ~platform ~config
+let run ~platform ~cache_store_for ~config
     ~extensions:{ alternate_request_handers = alternate_handlers } =
   Cobol_common.Platform.copy ~dst:Lsp_platform.record ~src:platform;
+  Lsp_platform.cache_store_for := cache_store_for;
   Lsp_io.initialize_channels ();
   let rec loop state =
     match Lsp_io.read_message () with

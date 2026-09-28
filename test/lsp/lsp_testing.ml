@@ -39,6 +39,7 @@ and cache_config =
   LSP.Types.{
     cache_storage = No_storage;
     cache_verbose = false;
+    cache_bounds = Superbol_cache.Types.Never;
   }
 
 let init_temp_project ?(toml = "") () =

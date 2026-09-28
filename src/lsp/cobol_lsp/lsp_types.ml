@@ -27,6 +27,9 @@ and cache_config =
   {
     cache_storage: cache_storage;
     cache_verbose: bool;
+    (** What a project's cache is allowed to keep.  Applied when the cache of a
+        project is written out in full, which is when it has just grown. *)
+    cache_bounds: Superbol_cache.Types.prune_policy;
   }
 
 and cache_storage =

@@ -5,7 +5,7 @@ version:0.9.0
 
 # hash of toml configuration files
 # used for generation of all files
-b1593053b6851eef583d9de4dc6d69d2:.
+a872b54667d56367a6708d214e28af9e:.
 # end context for .
 
 # begin context for .github/workflows/workflow.yml
@@ -20,7 +20,7 @@ b1593053b6851eef583d9de4dc6d69d2:.
 
 # begin context for Makefile
 # file Makefile
-9329cd139176803f14ec41f51bc9c2a6:Makefile
+ca43720dca3943e5ed08ced35a44cd55:Makefile
 # end context for Makefile
 
 # begin context for docs/README.txt
@@ -51,6 +51,7 @@ c8281f46ba9a11d0b61bc8ef67eaa357:docs/style.css
 # begin context for dune-project
 # file dune-project
 ae59770df7e0b31b92e66699d5762080:dune-project
+19d172b20423e5dc786f4532b687b904:dune-project
 # end context for dune-project
 
 # begin context for opam/autofonce.opam
@@ -136,7 +137,7 @@ d2fc0f3ac92018d644595a9607dd6265:opam/cobol_indent_old.opam
 
 # begin context for opam/cobol_lsp.opam
 # file opam/cobol_lsp.opam
-b325ce331af9c46fc049e660545f8526:opam/cobol_lsp.opam
+a68a2748f7fd225e79a0e12fd2073f2b:opam/cobol_lsp.opam
 # end context for opam/cobol_lsp.opam
 
 # begin context for opam/cobol_parser.opam
@@ -254,6 +255,11 @@ a034879e862514ca15e74e5bb1e42d7c:opam/superbol-studio-oss.opam
 c5b147eda5360e971ed791ed7f26ccfd:opam/superbol-vscode-oss.opam
 # end context for opam/superbol-vscode-oss.opam
 
+# begin context for opam/superbol_cache.opam
+# file opam/superbol_cache.opam
+009c795ac72130ed3b4af6fe3a0de7e5:opam/superbol_cache.opam
+# end context for opam/superbol_cache.opam
+
 # begin context for opam/superbol_free_lib.opam
 # file opam/superbol_free_lib.opam
 d321795c330be16cbbaf7ab9e6ab390d:opam/superbol_free_lib.opam
@@ -261,7 +267,7 @@ d321795c330be16cbbaf7ab9e6ab390d:opam/superbol_free_lib.opam
 
 # begin context for opam/superbol_platform.opam
 # file opam/superbol_platform.opam
-53b8aa71c90b462ac908e553613a7855:opam/superbol_platform.opam
+1d30d4f561ac7712d076139f50cca5f5:opam/superbol_platform.opam
 # end context for opam/superbol_platform.opam
 
 # begin context for opam/superbol_preprocs.opam
@@ -572,7 +578,7 @@ d3b7ae62f945ba98a321709cb807d516:src/lsp/cobol_indent/dune
 
 # begin context for src/lsp/cobol_lsp/dune
 # file src/lsp/cobol_lsp/dune
-7f644cbe5fbc6dd6242f157d8e740a9f:src/lsp/cobol_lsp/dune
+8646a5eb877e9240cc3c738be253b58f:src/lsp/cobol_lsp/dune
 # end context for src/lsp/cobol_lsp/dune
 
 # begin context for src/lsp/cobol_lsp/version.mlt
@@ -715,6 +721,16 @@ ef52691ec3bef505aa901bf197009fd1:src/lsp/ppx_cobcflags/dune
 fd264ba43b014605ebefbd7844b08378:src/lsp/superbol-free/linking_flags.sh
 # end context for src/lsp/superbol-free/linking_flags.sh
 
+# begin context for src/lsp/superbol_cache/dune
+# file src/lsp/superbol_cache/dune
+06b6e9213aacdfc47a4b0350fe5fafd5:src/lsp/superbol_cache/dune
+# end context for src/lsp/superbol_cache/dune
+
+# begin context for src/lsp/superbol_cache/version.mlt
+# file src/lsp/superbol_cache/version.mlt
+1af92d248bdb11b98ed03eb59c6831e5:src/lsp/superbol_cache/version.mlt
+# end context for src/lsp/superbol_cache/version.mlt
+
 # begin context for src/lsp/superbol_free_lib/dune
 # file src/lsp/superbol_free_lib/dune
 89994317295a6c33fe5ab9fe32b9d44a:src/lsp/superbol_free_lib/dune
@@ -727,7 +743,7 @@ fd264ba43b014605ebefbd7844b08378:src/lsp/superbol-free/linking_flags.sh
 
 # begin context for src/lsp/superbol_platform/dune
 # file src/lsp/superbol_platform/dune
-8e3118005069a4a4510334d70b01e16f:src/lsp/superbol_platform/dune
+5fcd3d1e18b5a942a71f57d3d11854bc:src/lsp/superbol_platform/dune
 # end context for src/lsp/superbol_platform/dune
 
 # begin context for src/lsp/superbol_platform/version.mlt

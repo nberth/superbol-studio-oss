@@ -323,6 +323,24 @@
  )
 
 (package
+ (name superbol_cache)
+ (synopsis "SuperBOL Studio OSS Project")
+ (description "Hierarchical cache for SuperBOL\n")
+ 
+  (sites
+    
+  )
+
+ (depends
+   (ocaml (>= 4.14.0))
+   (ez_file ( >= 0.5 ))
+   (cobol_common (= :version))
+   odoc
+   (dune (and ( >= 3.17.0 )( < 3.19.0 )))
+  )
+ )
+
+(package
  (name superbol_platform)
  (synopsis "SuperBOL Studio OSS Project")
  (description "SuperBOL Studio OSS is a new platform for COBOL")
@@ -333,6 +351,7 @@
 
  (depends
    (ocaml (>= 4.14.0))
+   (superbol_cache (= :version))
    (pretty (= :version))
    (ez_file ( >= 0.5 ))
    (cobol_preproc (= :version))
@@ -432,6 +451,7 @@
    (toml (and (>= 7.1.0) (< 8.0.0)))
    (superbol_project (= :version))
    (superbol_preprocs (= :version))
+   (superbol_cache (= :version))
    (pretty (= :version))
    (lsp (and ( >= 1.18 )( < 1.19 )))
    (jsonrpc ( >= 1.15 ))

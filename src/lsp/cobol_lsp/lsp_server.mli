@@ -69,6 +69,11 @@ val did_open
 val did_change
   : Lsp.Types.DidChangeTextDocumentParams.t -> t -> t
 
+(** Persists the document's cache, the file and what was parsed being known to
+    agree at that point. *)
+val did_save
+  : Lsp.Types.DidSaveTextDocumentParams.t -> t -> t
+
 val did_close
   : Lsp.Types.DidCloseTextDocumentParams.t -> t -> t
 
