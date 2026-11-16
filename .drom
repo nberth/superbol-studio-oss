@@ -5,7 +5,7 @@ version:0.9.0
 
 # hash of toml configuration files
 # used for generation of all files
-9a1e1a244b9943ffedfad05ac4358bb7:.
+9cf34f670f2fe7db4412fce584048851:.
 # end context for .
 
 # begin context for .github/workflows/workflow.yml
@@ -20,7 +20,7 @@ c45749b93d3b3ea32e8b56a62ad2bf92:.github/workflows/workflow.yml
 
 # begin context for Makefile
 # file Makefile
-52c675b9e092e6c78c00d6105cab2ccd:Makefile
+57a85e2eac025cc3dbd47c10907c695b:Makefile
 # end context for Makefile
 
 # begin context for docs/README.txt
@@ -55,7 +55,7 @@ c8281f46ba9a11d0b61bc8ef67eaa357:docs/style.css
 
 # begin context for dune-project
 # file dune-project
-285a74e4ac125659e7945715e00643df:dune-project
+7ce47dbd691f5821a2f55bfea05e8c25:dune-project
 # end context for dune-project
 
 # begin context for opam/autofonce.opam
@@ -197,6 +197,11 @@ f3396892aeda7d0ab09c0b6d3a8f048e:opam/cobol_typeck.opam
 # file opam/ez_call.opam
 769a0ea1597f0450689e716672d18e3d:opam/ez_call.opam
 # end context for opam/ez_call.opam
+
+# begin context for opam/ez_mcp.opam
+# file opam/ez_mcp.opam
+9d143177c47657ec1d6e661635f9bb9a:opam/ez_mcp.opam
+# end context for opam/ez_mcp.opam
 
 # begin context for opam/ez_toml.opam
 # file opam/ez_toml.opam
@@ -807,6 +812,16 @@ a18438bf6e347bb93779045b0a7006d1:src/lsp/ebcdic_lib/ebcdic_version.mlt
 # file src/lsp/ebcdic_lib/package.toml
 f431a6e111a04ad6c04ae8e14a4a8743:src/lsp/ebcdic_lib/package.toml
 # end context for src/lsp/ebcdic_lib/package.toml
+
+# begin context for src/lsp/ez_mcp/dune
+# file src/lsp/ez_mcp/dune
+70bdc441d821e7f3d8dcdf7a4fade919:src/lsp/ez_mcp/dune
+# end context for src/lsp/ez_mcp/dune
+
+# begin context for src/lsp/ez_mcp/version.mlt
+# file src/lsp/ez_mcp/version.mlt
+a18438bf6e347bb93779045b0a7006d1:src/lsp/ez_mcp/version.mlt
+# end context for src/lsp/ez_mcp/version.mlt
 
 # begin context for src/lsp/ezr_toml/dune
 # file src/lsp/ezr_toml/dune

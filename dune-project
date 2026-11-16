@@ -346,6 +346,24 @@
  )
 
 (package
+ (name ez_mcp)
+ (synopsis "Types and stdio server for the Model Context Protocol (MCP)")
+ (description "Typed messages of the Model Context Protocol, in the style of the `lsp`\nlibrary, along with a server over the stdio transport.  Only the parts\nneeded to provide tools are covered, for protocol versions 2024-11-05\nto 2026-07-28.\n")
+ 
+  (sites
+    
+  )
+
+ (depends
+   (ocaml (>= 4.14.2))
+   (yojson ( >= 2 ))
+   (jsonrpc ( >= 1.15 ))
+   odoc
+   (dune (and ( >= 3.17.0 )( < 3.19.0 )))
+  )
+ )
+
+(package
  (name cobol_common)
  (synopsis "SuperBOL Studio OSS Project")
  (description "SuperBOL Studio OSS is a new platform for COBOL")

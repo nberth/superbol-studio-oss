@@ -1,0 +1,35 @@
+
+# name of package
+name = "ez_mcp"
+skeleton = "library"
+
+# synopsis if different from project synopsis
+synopsis = "Types and stdio server for the Model Context Protocol (MCP)"
+
+# description if different from project description
+description = """
+Typed messages of the Model Context Protocol, in the style of the `lsp`
+library, along with a server over the stdio transport.  Only the parts
+needed to provide tools are covered, for protocol versions 2024-11-05
+to 2026-07-28.
+"""
+
+# kind is either "library", "program" or "virtual"
+kind = "library"
+
+# name of a file to generate with the current version
+gen-version = "version.ml"
+
+# files to skip while updating at package level
+skip = ["index.mld", "main.ml"]
+
+# package library dependencies
+[dependencies]
+jsonrpc = ">=1.15"
+yojson = ">=2"
+
+# package tools dependencies
+[tools]
+
+# package fields (depends on package skeleton)
+[fields]

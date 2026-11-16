@@ -331,6 +331,10 @@ dir = "src/lsp/superbol_platform"
 # edit 'src/lsp/superbol_platform/package.toml' for package-specific options
 
 [[package]]
+dir = "src/lsp/ez_mcp"
+# edit 'src/lsp/ez_mcp/package.toml' for package-specific options
+
+[[package]]
 dir = "src/lsp/cobol_common"
 # edit 'src/lsp/cobol_common/package.toml' for package-specific options
 
