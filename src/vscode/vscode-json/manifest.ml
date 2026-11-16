@@ -569,6 +569,49 @@ let language
     lang_icon = icon ;
   }
 
+(* Tool that language models may invoke (e.g. in agent mode), implemented with
+   `vscode.lm.registerTool`.  [lmtool_name] must not start with `copilot_` or
+   `vscode_`. *)
+type languageModelTool = {
+  lmtool_name : string ;
+  lmtool_displayName : string ;
+  lmtool_modelDescription : string ;
+  lmtool_userDescription : string option ;
+  lmtool_toolReferenceName : string option ; (* for `#name` in prompts *)
+  lmtool_canBeReferencedInPrompt : bool option ;
+  lmtool_icon : command_icon option ;
+  lmtool_inputSchema : any option ; (* JSON schema of an object *)
+  lmtool_tags : string list ; [@dft []]
+  lmtool_when : string option ;
+}
+[@@deriving json_encoding,show]
+let languageModelTool
+    ~name ~displayName ~modelDescription
+    ?userDescription ?toolReferenceName ?canBeReferencedInPrompt
+    ?icon ?inputSchema ?(tags = []) ?when_ () =
+  {
+    lmtool_name = name ;
+    lmtool_displayName = displayName ;
+    lmtool_modelDescription = modelDescription ;
+    lmtool_userDescription = userDescription ;
+    lmtool_toolReferenceName = toolReferenceName ;
+    lmtool_canBeReferencedInPrompt = canBeReferencedInPrompt ;
+    lmtool_icon = icon ;
+    lmtool_inputSchema = inputSchema ;
+    lmtool_tags = tags ;
+    lmtool_when = when_ ;
+  }
+
+(* Collection of MCP servers, provided with
+   `vscode.lm.registerMcpServerDefinitionProvider` using the same [mcp_id]. *)
+type mcpServerDefinitionProvider = {
+  mcp_id : string ;
+  mcp_label : string ;
+}
+[@@deriving json_encoding,show]
+let mcpServerDefinitionProvider ~id ~label =
+  { mcp_id = id ; mcp_label = label }
+
 type menu = {
   menu_command : string option ;
   menu_group : string option ;
@@ -801,6 +844,8 @@ type contributes = {
     tomlValidation : tomlValidation list ; [@dft []]
     keybindings : keybinding list ; [@dft []]
     languages : language list ; [@dft []]
+    languageModelTools : languageModelTool list ; [@dft []]
+    mcpServerDefinitionProviders : mcpServerDefinitionProvider list ; [@dft []]
     menus : ( string * menu list ) list [@assoc] ; [@dft []]
     problemMatchers : problemMatcher list ; [@dft []]
     problemPatterns : problemPattern list ; [@dft []]
@@ -840,6 +885,8 @@ let contributes
   ?( tomlValidation = [] )
   ?( keybindings = [] )
   ?( languages = [] )
+  ?( languageModelTools = [] )
+  ?( mcpServerDefinitionProviders = [] )
   ?( menus = [] )
   ?( problemMatchers = [] )
   ?( problemPatterns = [] )
@@ -867,6 +914,8 @@ let contributes
     tomlValidation ;
     keybindings ;
     languages ;
+    languageModelTools ;
+    mcpServerDefinitionProviders ;
     menus ;
     problemMatchers ;
     problemPatterns ;
