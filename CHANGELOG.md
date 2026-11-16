@@ -23,6 +23,7 @@
 - New manifest-based cache [#709](https://github.com/OCamlPro/superbol-studio-oss/pull/709) [#711](https://github.com/OCamlPro/superbol-studio-oss/pull/711) [#712](https://github.com/OCamlPro/superbol-studio-oss/pull/712)
 
 ### Removed
+- Support for VS Code versions older than 1.101 (June 2025) [#???](https://github.com/OCamlPro/superbol-studio-oss/pull/???)
 - The `superbol.lspPath` setting, and with it the support for connecting to the LSP server remotely (`tcp://` values) [#717](https://github.com/OCamlPro/superbol-studio-oss/pull/717)
 
 ### Improved

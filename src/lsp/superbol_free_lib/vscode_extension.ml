@@ -15,7 +15,7 @@
 open Vscode_json
 open Manifest
 
-let vscode_engine = "1.64.0"
+let vscode_engine = "1.101.0"
 
 let marketplace =
   Manifest.marketplace
