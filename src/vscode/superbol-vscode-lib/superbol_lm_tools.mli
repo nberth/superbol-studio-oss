@@ -16,8 +16,13 @@
     registered here must be declared in the [languageModelTools] contribution
     point of the extension manifest, with the same name. *)
 
-(** Name of the tool that gives the outline of a COBOL source file. *)
+(** Names of the tools. *)
+
 val outline_tool_name: string
+val find_symbol_tool_name: string
+val diagnostics_tool_name: string
+val project_settings_tool_name: string
+val control_flow_tool_name: string
 
 (** [register instance] registers every tool, unless the editor lacks the
     corresponding API. *)

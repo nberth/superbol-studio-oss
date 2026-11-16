@@ -602,8 +602,106 @@
             },
             "maxDepth": {
               "type": "integer",
-              "minimum": 1,
               "description": "Maximum nesting depth of the symbols shown (programs are at depth 1, divisions at depth 2, sections at depth 3); deeper symbols are counted but not listed.  Use 3 or 4 for a quick overview of large programs."
+            }
+          }
+        },
+        "tags": [
+          "cobol",
+          "superbol"
+        ]
+      },
+      {
+        "name": "superbol_cobol_find_symbol",
+        "displayName": "Find COBOL Symbol",
+        "modelDescription": "Search the COBOL symbols of the workspace by name: programs, sections, paragraphs, data items, condition-names (level 88), and constants.  Returns, best matches first, the kind of each symbol, its name, its enclosing program or section, and its file and 1-based line range.  Use it to find which file defines a program or paragraph, e.g. the target of a CALL or PERFORM, instead of searching files.  Matching ignores case and treats `-` and `_` alike, and the letters of the query only need to appear in order (e.g. `CALCTX` matches `CALC-TAX`).  Only files that are open or that SuperBOL has already analyzed are searched.",
+        "userDescription": "Find COBOL programs, sections, paragraphs, and data items by name, across the workspace.",
+        "toolReferenceName": "cobolSymbol",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(symbol-field)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Name, or part of a name, of the symbols to look for."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Maximum number of results (50 by default)."
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "tags": [
+          "cobol",
+          "superbol"
+        ]
+      },
+      {
+        "name": "superbol_cobol_diagnostics",
+        "displayName": "COBOL Problems",
+        "modelDescription": "List the errors and warnings that the SuperBOL language server reports on COBOL source files (syntax errors, unknown or ambiguous names, invalid clauses, missing copybooks, ...), with their 1-based line and column.  Use it after editing COBOL code to check that it is still valid, or to find what to fix.  Without a file, it lists the problems of every COBOL file of the workspace that SuperBOL has analyzed.",
+        "userDescription": "Errors and warnings that SuperBOL reports on COBOL files.",
+        "toolReferenceName": "cobolProblems",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(warning)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Absolute path of the COBOL source file. Defaults to every analyzed file of the workspace."
+            }
+          }
+        },
+        "tags": [
+          "cobol",
+          "superbol"
+        ]
+      },
+      {
+        "name": "superbol_cobol_project_settings",
+        "displayName": "COBOL Project Settings",
+        "modelDescription": "Get the SuperBOL settings of the project that holds a COBOL file: COBOL dialect, source format (e.g. `fixed`, with code in columns 8-72, or `free`), source formats by file extension, directories and extensions used to find copybooks, and excluded directories.  Use it before writing COBOL code, so that it follows the expected format and dialect, or to find where the copybooks of a program are.",
+        "userDescription": "SuperBOL settings of a COBOL project: dialect, source format, copybook paths.",
+        "toolReferenceName": "cobolSettings",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(settings-gear)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Absolute path of the COBOL source file. Defaults to the file shown in the active editor, or else the first workspace folder."
+            }
+          }
+        },
+        "tags": [
+          "cobol",
+          "superbol"
+        ]
+      },
+      {
+        "name": "superbol_cobol_control_flow",
+        "displayName": "COBOL Control Flow",
+        "modelDescription": "Get the control flow graph of a COBOL program, or of one of its sections, between paragraphs and sections: for each one, which paragraphs or sections it PERFORMs, which it reaches with GO TO, and which it falls through to, with 1-based line ranges.  Use it to understand the overall logic of a program, or what may run before or after a given paragraph, without reading every statement.  When a file holds several programs, or to get the graph of one section, the tool lists the graph names that `name` accepts.",
+        "userDescription": "Control flow between the paragraphs and sections of a COBOL program.",
+        "toolReferenceName": "cobolControlFlow",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(type-hierarchy)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Absolute path of the COBOL source file. Defaults to the file shown in the active editor."
+            },
+            "name": {
+              "type": "string",
+              "description": "Name of the graph: a program name, or a section name followed by its program name in parentheses, e.g. `MAIN-SECTION (PAYROLL)`.  Defaults to the program of the file, when it holds only one."
             }
           }
         },

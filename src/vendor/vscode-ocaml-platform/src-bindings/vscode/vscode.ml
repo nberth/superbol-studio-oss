@@ -1346,6 +1346,23 @@ module Diagnostic = struct
   let make ?severity ~message range = make ~range ~message ?severity ()
 end
 
+module DiagnosticCollection = struct
+  include Interface.Make ()
+
+  include
+    [%js:
+    val name : t -> string [@@js.get]
+
+    val get : t -> Uri.t -> Diagnostic.t list or_undefined [@@js.call]
+
+    val forEach :
+         t
+      -> callback:
+           (uri:Uri.t -> diagnostics:Diagnostic.t list -> collection:t -> unit)
+      -> unit
+      [@@js.call]]
+end
+
 module TextDocumentShowOptions = struct
   include Interface.Make ()
 

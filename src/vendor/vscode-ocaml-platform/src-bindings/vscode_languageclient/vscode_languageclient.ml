@@ -356,5 +356,8 @@ module LanguageClient = struct
 
     val registerFeature : t -> feature:StaticFeature.t -> unit [@@js.call]
 
-    val sendNotification : t -> string -> Ojs.t -> unit [@@js.call]]
+    val sendNotification : t -> string -> Ojs.t -> unit [@@js.call]
+
+    val diagnostics : t -> Vscode.DiagnosticCollection.t or_undefined
+      [@@js.get]]
 end

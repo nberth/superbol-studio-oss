@@ -311,4 +311,8 @@ module LanguageClient : sig
   val registerFeature : t -> feature:StaticFeature.t -> unit
 
   val sendNotification : t -> string -> Ojs.t -> unit
+
+  (** Diagnostics published by the server, unless the client is not
+      running. *)
+  val diagnostics : t -> Vscode.DiagnosticCollection.t option
 end
