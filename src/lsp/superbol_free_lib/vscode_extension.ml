@@ -813,8 +813,55 @@ let views =
        ~when_:"workbenchState != empty"];
   ]
 
+(* Tools for language models, registered in [Superbol_lm_tools] under the same
+   names. *)
+let languageModelTools = [
+  Manifest.languageModelTool ()
+    ~name:"superbol_cobol_outline"
+    ~displayName:"COBOL Outline"
+    ~toolReferenceName:"cobolOutline"
+    ~canBeReferencedInPrompt:true
+    ~icon:{ icon_light = "$(list-tree)"; icon_dark = "$(list-tree)" }
+    ~tags:["cobol"; "superbol"]
+    ~userDescription:"Outline of a COBOL program: its divisions, sections, \
+                      paragraphs, and data items, with their line ranges."
+    ~modelDescription:"Get the structure of a COBOL source file, as computed \
+                       by the SuperBOL language server: programs (and \
+                       classes, methods, functions), divisions, sections, \
+                       data items with their level numbers (01, 05, 77, 88, \
+                       ...) and nesting, and procedure sections and \
+                       paragraphs, each with its 1-based line range.  Use it \
+                       to find your way in a COBOL program before reading \
+                       parts of it, which is much cheaper than reading the \
+                       whole file, as COBOL programs are often very long.  \
+                       Data item types (PICTURE, USAGE) and statements are \
+                       not included."
+    ~inputSchema:(`O [
+        "type", `String "object";
+        "properties", `O [
+          "filePath", `O [
+            "type", `String "string";
+            "description", `String "Absolute path of the COBOL source file. \
+                                    Defaults to the file shown in the \
+                                    active editor.";
+          ];
+          "maxDepth", `O [
+            "type", `String "integer";
+            "minimum", `Float 1.;
+            "description", `String "Maximum nesting depth of the symbols \
+                                    shown (programs are at depth 1, \
+                                    divisions at depth 2, sections at \
+                                    depth 3); deeper symbols are counted \
+                                    but not listed.  Use 3 or 4 for a quick \
+                                    overview of large programs.";
+          ];
+        ];
+      ]);
+]
+
 let contributes =
   Manifest.contributes ()
+    ~languageModelTools
     ~languages
     ~grammars
     ~debuggers

@@ -584,6 +584,35 @@
         "configuration": "./syntaxes/list-n-dump-configuration.json"
       }
     ],
+    "languageModelTools": [
+      {
+        "name": "superbol_cobol_outline",
+        "displayName": "COBOL Outline",
+        "modelDescription": "Get the structure of a COBOL source file, as computed by the SuperBOL language server: programs (and classes, methods, functions), divisions, sections, data items with their level numbers (01, 05, 77, 88, ...) and nesting, and procedure sections and paragraphs, each with its 1-based line range.  Use it to find your way in a COBOL program before reading parts of it, which is much cheaper than reading the whole file, as COBOL programs are often very long.  Data item types (PICTURE, USAGE) and statements are not included.",
+        "userDescription": "Outline of a COBOL program: its divisions, sections, paragraphs, and data items, with their line ranges.",
+        "toolReferenceName": "cobolOutline",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(list-tree)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Absolute path of the COBOL source file. Defaults to the file shown in the active editor."
+            },
+            "maxDepth": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum nesting depth of the symbols shown (programs are at depth 1, divisions at depth 2, sections at depth 3); deeper symbols are counted but not listed.  Use 3 or 4 for a quick overview of large programs."
+            }
+          }
+        },
+        "tags": [
+          "cobol",
+          "superbol"
+        ]
+      }
+    ],
     "menus": {
       "editor/context": [
         {
