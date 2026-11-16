@@ -2722,6 +2722,193 @@ module Languages : sig
   val getDiagnostics_all : unit -> (Uri.t * Diagnostic.t list) list
 end
 
+module LanguageModelTextPart : sig
+  include Js.T
+
+  val value : t -> string
+
+  val make : value:string -> t
+end
+
+module LanguageModelToolResult : sig
+  include Js.T
+
+  (** Elements are [LanguageModelTextPart]s, [LanguageModelDataPart]s, or
+      prompt-tsx parts. *)
+  val content : t -> Js.Any.t list
+
+  val make : content:LanguageModelTextPart.t list -> t
+
+  (** [of_text s] is a result made of a single text part [s]. *)
+  val of_text : string -> t
+end
+
+module LanguageModelToolInvocationOptions : sig
+  include Js.T
+
+  (** Input of the tool, as validated by VS Code against the [inputSchema]
+      declared in the [languageModelTools] contribution point. *)
+  val input : t -> Js.Any.t
+
+  val toolInvocationToken : t -> Js.Any.t option
+
+  val create : input:Js.Any.t -> ?toolInvocationToken:Js.Any.t -> unit -> t
+end
+
+module LanguageModelToolInvocationPrepareOptions : sig
+  include Js.T
+
+  val input : t -> Js.Any.t
+end
+
+module LanguageModelToolConfirmationMessages : sig
+  include Js.T
+
+  val create :
+       title:string
+    -> message:[ `String of string | `MarkdownString of MarkdownString.t ]
+    -> t
+end
+
+module PreparedToolInvocation : sig
+  include Js.T
+
+  val create :
+       ?invocationMessage:
+         [ `String of string | `MarkdownString of MarkdownString.t ]
+    -> ?confirmationMessages:LanguageModelToolConfirmationMessages.t
+    -> unit
+    -> t
+end
+
+module LanguageModelTool : sig
+  include Js.T
+
+  val create :
+       invoke:
+         (   options:LanguageModelToolInvocationOptions.t
+          -> token:CancellationToken.t
+          -> LanguageModelToolResult.t ProviderResult.t)
+    -> ?prepareInvocation:
+         (   options:LanguageModelToolInvocationPrepareOptions.t
+          -> token:CancellationToken.t
+          -> PreparedToolInvocation.t ProviderResult.t)
+    -> unit
+    -> t
+end
+
+module LanguageModelToolInformation : sig
+  include Js.T
+
+  val name : t -> string
+
+  val description : t -> string
+
+  val inputSchema : t -> Js.Any.t option
+
+  val tags : t -> string list
+end
+
+module McpStdioServerDefinition : sig
+  include Js.T
+
+  val label : t -> string
+
+  val cwd : t -> Uri.t option
+
+  val set_cwd : t -> Uri.t -> unit
+
+  val command : t -> string
+
+  val args : t -> string list
+
+  val env : t -> string Interop.Dict.t
+
+  val version : t -> string option
+
+  val make :
+       label:string
+    -> command:string
+    -> ?args:string list
+    -> ?env:string Interop.Dict.t
+    -> ?version:string
+    -> unit
+    -> t
+end
+
+module McpHttpServerDefinition : sig
+  include Js.T
+
+  val label : t -> string
+
+  val uri : t -> Uri.t
+
+  val headers : t -> string Interop.Dict.t
+
+  val version : t -> string option
+
+  val make :
+       label:string
+    -> uri:Uri.t
+    -> ?headers:string Interop.Dict.t
+    -> ?version:string
+    -> unit
+    -> t
+end
+
+module McpServerDefinition : sig
+  type t =
+    [ `Stdio of McpStdioServerDefinition.t
+    | `Http of McpHttpServerDefinition.t
+    ]
+
+  val t_to_js : t -> Ojs.t
+
+  val t_of_js : Ojs.t -> t
+end
+
+module McpServerDefinitionProvider : sig
+  include Js.T
+
+  val create :
+       ?onDidChangeMcpServerDefinitions:unit Event.t
+    -> provideMcpServerDefinitions:
+         (token:CancellationToken.t -> McpServerDefinition.t list ProviderResult.t)
+    -> ?resolveMcpServerDefinition:
+         (   server:McpServerDefinition.t
+          -> token:CancellationToken.t
+          -> McpServerDefinition.t ProviderResult.t)
+    -> unit
+    -> t
+end
+
+(** Bindings for the [vscode.lm] namespace.
+
+    That namespace is missing from older VS Code versions (and some forks):
+    check {!tools_available} or {!mcp_available} before using the
+    corresponding functions. *)
+module Lm : sig
+  val tools : unit -> LanguageModelToolInformation.t list
+
+  val registerTool : name:string -> tool:LanguageModelTool.t -> Disposable.t
+
+  val invokeTool :
+       name:string
+    -> options:LanguageModelToolInvocationOptions.t
+    -> ?token:CancellationToken.t
+    -> unit
+    -> LanguageModelToolResult.t Promise.t
+
+  val registerMcpServerDefinitionProvider :
+    id:string -> provider:McpServerDefinitionProvider.t -> Disposable.t
+
+  (** Tells whether {!registerTool} is available. *)
+  val tools_available : unit -> bool
+
+  (** Tells whether {!registerMcpServerDefinitionProvider} is available. *)
+  val mcp_available : unit -> bool
+end
+
 module DebugProtocolMessage : sig
   include Js.T
 end

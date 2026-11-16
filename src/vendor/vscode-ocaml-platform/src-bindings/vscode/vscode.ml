@@ -3599,6 +3599,244 @@ module Languages = struct
       [@@js.global "__SUPERBOL__.vscode.languages.getDiagnostics"]]
 end
 
+module LanguageModelTextPart = struct
+  include Class.Make ()
+
+  include
+    [%js:
+    val value : t -> string [@@js.get]
+
+    val make : value:string -> t
+      [@@js.new "__SUPERBOL__.vscode.LanguageModelTextPart"]]
+end
+
+module LanguageModelToolResult = struct
+  include Class.Make ()
+
+  include
+    [%js:
+    val content : t -> Js.Any.t list [@@js.get]
+
+    val make : content:LanguageModelTextPart.t list -> t
+      [@@js.new "__SUPERBOL__.vscode.LanguageModelToolResult"]]
+
+  let of_text value = make ~content:[ LanguageModelTextPart.make ~value ]
+end
+
+module LanguageModelToolInvocationOptions = struct
+  include Interface.Make ()
+
+  include
+    [%js:
+    val input : t -> Js.Any.t [@@js.get]
+
+    val toolInvocationToken : t -> Js.Any.t or_undefined [@@js.get]
+
+    val create : input:Js.Any.t -> ?toolInvocationToken:Js.Any.t -> unit -> t
+      [@@js.builder]]
+end
+
+module LanguageModelToolInvocationPrepareOptions = struct
+  include Interface.Make ()
+
+  include [%js: val input : t -> Js.Any.t [@@js.get]]
+end
+
+module LanguageModelToolConfirmationMessages = struct
+  include Interface.Make ()
+
+  include
+    [%js:
+    val create :
+         title:string
+      -> message:
+           ([ `String of string
+            | `MarkdownString of MarkdownString.t
+            ]
+           [@js.union])
+      -> t
+      [@@js.builder]]
+end
+
+module PreparedToolInvocation = struct
+  include Interface.Make ()
+
+  include
+    [%js:
+    val create :
+         ?invocationMessage:
+           ([ `String of string
+            | `MarkdownString of MarkdownString.t
+            ]
+           [@js.union])
+      -> ?confirmationMessages:LanguageModelToolConfirmationMessages.t
+      -> unit
+      -> t
+      [@@js.builder]]
+end
+
+module LanguageModelTool = struct
+  include Interface.Make ()
+
+  include
+    [%js:
+    val create :
+         invoke:
+           (   options:LanguageModelToolInvocationOptions.t
+            -> token:CancellationToken.t
+            -> LanguageModelToolResult.t ProviderResult.t)
+      -> ?prepareInvocation:
+           (   options:LanguageModelToolInvocationPrepareOptions.t
+            -> token:CancellationToken.t
+            -> PreparedToolInvocation.t ProviderResult.t)
+      -> unit
+      -> t
+      [@@js.builder]]
+end
+
+module LanguageModelToolInformation = struct
+  include Interface.Make ()
+
+  include
+    [%js:
+    val name : t -> string [@@js.get]
+
+    val description : t -> string [@@js.get]
+
+    val inputSchema : t -> Js.Any.t or_undefined [@@js.get]
+
+    val tags : t -> string list [@@js.get]]
+end
+
+module McpStdioServerDefinition = struct
+  include Class.Make ()
+
+  include
+    [%js:
+    val label : t -> string [@@js.get]
+
+    val cwd : t -> Uri.t or_undefined [@@js.get]
+
+    val set_cwd : t -> Uri.t -> unit [@@js.set "cwd"]
+
+    val command : t -> string [@@js.get]
+
+    val args : t -> string list [@@js.get]
+
+    val env : t -> string Dict.t [@@js.get]
+
+    val version : t -> string or_undefined [@@js.get]
+
+    val make :
+         label:string
+      -> command:string
+      -> ?args:string list
+      -> ?env:string Dict.t
+      -> ?version:string
+      -> unit
+      -> t
+      [@@js.new "__SUPERBOL__.vscode.McpStdioServerDefinition"]]
+end
+
+module McpHttpServerDefinition = struct
+  include Class.Make ()
+
+  include
+    [%js:
+    val label : t -> string [@@js.get]
+
+    val uri : t -> Uri.t [@@js.get]
+
+    val headers : t -> string Dict.t [@@js.get]
+
+    val version : t -> string or_undefined [@@js.get]
+
+    val make :
+         label:string
+      -> uri:Uri.t
+      -> ?headers:string Dict.t
+      -> ?version:string
+      -> unit
+      -> t
+      [@@js.new "__SUPERBOL__.vscode.McpHttpServerDefinition"]]
+end
+
+module McpServerDefinition = struct
+  type t =
+    [ `Stdio of McpStdioServerDefinition.t
+    | `Http of McpHttpServerDefinition.t
+    ]
+
+  let t_to_js : t -> Ojs.t = function
+    | `Stdio d -> McpStdioServerDefinition.t_to_js d
+    | `Http d -> McpHttpServerDefinition.t_to_js d
+
+  let t_of_js (js_val : Ojs.t) : t =
+    if Ojs.has_property js_val "command" then
+      `Stdio (McpStdioServerDefinition.t_of_js js_val)
+    else `Http (McpHttpServerDefinition.t_of_js js_val)
+end
+
+module McpServerDefinitionProvider = struct
+  include Interface.Make ()
+
+  module OnDidChangeMcpServerDefinitions = Event.Make (Js.Unit)
+
+  include
+    [%js:
+    val create :
+         ?onDidChangeMcpServerDefinitions:OnDidChangeMcpServerDefinitions.t
+      -> provideMcpServerDefinitions:
+           (   token:CancellationToken.t
+            -> McpServerDefinition.t list ProviderResult.t)
+      -> ?resolveMcpServerDefinition:
+           (   server:McpServerDefinition.t
+            -> token:CancellationToken.t
+            -> McpServerDefinition.t ProviderResult.t)
+      -> unit
+      -> t
+      [@@js.builder]]
+end
+
+module Lm = struct
+  include
+    [%js:
+    val tools : unit -> LanguageModelToolInformation.t list
+      [@@js.get "__SUPERBOL__.vscode.lm.tools"]
+
+    val registerTool : name:string -> tool:LanguageModelTool.t -> Disposable.t
+      [@@js.global "__SUPERBOL__.vscode.lm.registerTool"]
+
+    val invokeTool :
+         name:string
+      -> options:LanguageModelToolInvocationOptions.t
+      -> ?token:CancellationToken.t
+      -> unit
+      -> LanguageModelToolResult.t Promise.t
+      [@@js.global "__SUPERBOL__.vscode.lm.invokeTool"]
+
+    val registerMcpServerDefinitionProvider :
+      id:string -> provider:McpServerDefinitionProvider.t -> Disposable.t
+      [@@js.global "__SUPERBOL__.vscode.lm.registerMcpServerDefinitionProvider"]]
+
+  (* The [vscode.lm] namespace, or [None] on VS Code versions without it. *)
+  let namespace () =
+    let vscode =
+      Ojs.get_prop_ascii (Ojs.get_prop_ascii Ojs.global "__SUPERBOL__") "vscode"
+    in
+    let lm = Ojs.get_prop_ascii vscode "lm" in
+    if Ojs.is_null lm then None else Some lm
+
+  let has_function name =
+    match namespace () with
+    | None -> false
+    | Some lm -> Ojs.type_of (Ojs.get_prop_ascii lm name) = "function"
+
+  let tools_available () = has_function "registerTool"
+
+  let mcp_available () = has_function "registerMcpServerDefinitionProvider"
+end
+
 module DebugProtocolMessage = struct
   include Interface.Make ()
 end
