@@ -14,7 +14,8 @@
 
 (** Tools that language models may invoke, e.g. in agent mode.  Every tool
     registered here must be declared in the [languageModelTools] contribution
-    point of the extension manifest, with the same name. *)
+    point of the extension manifest, with the same name.  The LSP server
+    implements them (see the [superbol/callTool] request). *)
 
 (** Names of the tools. *)
 

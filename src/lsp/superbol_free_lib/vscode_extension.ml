@@ -813,147 +813,32 @@ let views =
        ~when_:"workbenchState != empty"];
   ]
 
-(* Tools for language models, registered in [Superbol_lm_tools] under the same
-   names. *)
+(* Tools for language models, defined in the LSP server, and registered by the
+   extension under the same names. *)
 
-let tool_input_schema ?(required = []) properties =
-  `O ([
-      "type", `String "object";
-      "properties", `O (List.map (fun (name, typ, description) ->
-          name, `O ["type", `String typ;
-                    "description", `String description]) properties);
-    ] @ match required with
-    | [] -> []
-    | r -> ["required", `A (List.map (fun s -> `String s) r)])
+let rec ezjsonm_of_yojson : Yojson.Safe.t -> Manifest.any = function
+  | `Assoc fields -> `O (List.map (fun (k, v) -> k, ezjsonm_of_yojson v) fields)
+  | `List l | `Tuple l -> `A (List.map ezjsonm_of_yojson l)
+  | `String s -> `String s
+  | `Int i -> `Float (float_of_int i)
+  | `Intlit s -> `String s
+  | `Float f -> `Float f
+  | `Bool b -> `Bool b
+  | `Null | `Variant _ -> `Null
 
-let file_path_property ~default =
-  "filePath", "string",
-  "Absolute path of the COBOL source file. Defaults to " ^ default ^ "."
-
-let languageModelTool ~name ~displayName ~toolReferenceName ~icon
-    ~userDescription ~modelDescription ?inputSchema () =
-  Manifest.languageModelTool ()
-    ~name ~displayName ~toolReferenceName ~userDescription ~modelDescription
-    ?inputSchema
-    ~canBeReferencedInPrompt:true
-    ~icon:{ icon_light = icon; icon_dark = icon }
-    ~tags:["cobol"; "superbol"]
-
-let languageModelTools = [
-  languageModelTool ()
-    ~name:"superbol_cobol_outline"
-    ~displayName:"COBOL Outline"
-    ~toolReferenceName:"cobolOutline"
-    ~icon:"$(list-tree)"
-    ~userDescription:"Outline of a COBOL program: its divisions, sections, \
-                      paragraphs, and data items, with their line ranges."
-    ~modelDescription:"Get the structure of a COBOL source file, as computed \
-                       by the SuperBOL language server: programs (and \
-                       classes, methods, functions), divisions, sections, \
-                       data items with their level numbers (01, 05, 77, 88, \
-                       ...) and nesting, and procedure sections and \
-                       paragraphs, each with its 1-based line range.  Use it \
-                       to find your way in a COBOL program before reading \
-                       parts of it, which is much cheaper than reading the \
-                       whole file, as COBOL programs are often very long.  \
-                       Data item types (PICTURE, USAGE) and statements are \
-                       not included."
-    ~inputSchema:(tool_input_schema [
-        file_path_property ~default:"the file shown in the active editor";
-        "maxDepth", "integer",
-        "Maximum nesting depth of the symbols shown (programs are at depth \
-         1, divisions at depth 2, sections at depth 3); deeper symbols are \
-         counted but not listed.  Use 3 or 4 for a quick overview of large \
-         programs.";
-      ]);
-  languageModelTool ()
-    ~name:"superbol_cobol_find_symbol"
-    ~displayName:"Find COBOL Symbol"
-    ~toolReferenceName:"cobolSymbol"
-    ~icon:"$(symbol-field)"
-    ~userDescription:"Find COBOL programs, sections, paragraphs, and data \
-                      items by name, across the workspace."
-    ~modelDescription:"Search the COBOL symbols of the workspace by name: \
-                       programs, sections, paragraphs, data items, \
-                       condition-names (level 88), and constants.  Returns, \
-                       best matches first, the kind of each symbol, its \
-                       name, its enclosing program or section, and its file \
-                       and 1-based line range.  Use it to find which file \
-                       defines a program or paragraph, e.g. the target of a \
-                       CALL or PERFORM, instead of searching files.  Matching \
-                       ignores case and treats `-` and `_` alike, and the \
-                       letters of the query only need to appear in order \
-                       (e.g. `CALCTX` matches `CALC-TAX`).  Only files that \
-                       are open or that SuperBOL has already analyzed are \
-                       searched."
-    ~inputSchema:(tool_input_schema ~required:["query"] [
-        "query", "string",
-        "Name, or part of a name, of the symbols to look for.";
-        "limit", "integer",
-        "Maximum number of results (50 by default).";
-      ]);
-  languageModelTool ()
-    ~name:"superbol_cobol_diagnostics"
-    ~displayName:"COBOL Problems"
-    ~toolReferenceName:"cobolProblems"
-    ~icon:"$(warning)"
-    ~userDescription:"Errors and warnings that SuperBOL reports on COBOL \
-                      files."
-    ~modelDescription:"List the errors and warnings that the SuperBOL \
-                       language server reports on COBOL source files (syntax \
-                       errors, unknown or ambiguous names, invalid clauses, \
-                       missing copybooks, ...), with their 1-based line and \
-                       column.  Use it after editing COBOL code to check that \
-                       it is still valid, or to find what to fix.  Without a \
-                       file, it lists the problems of every COBOL file of \
-                       the workspace that SuperBOL has analyzed."
-    ~inputSchema:(tool_input_schema [
-        file_path_property ~default:"every analyzed file of the workspace";
-      ]);
-  languageModelTool ()
-    ~name:"superbol_cobol_project_settings"
-    ~displayName:"COBOL Project Settings"
-    ~toolReferenceName:"cobolSettings"
-    ~icon:"$(settings-gear)"
-    ~userDescription:"SuperBOL settings of a COBOL project: dialect, source \
-                      format, copybook paths."
-    ~modelDescription:"Get the SuperBOL settings of the project that holds a \
-                       COBOL file: COBOL dialect, source format (e.g. `fixed`, \
-                       with code in columns 8-72, or `free`), source formats \
-                       by file extension, directories and extensions used to \
-                       find copybooks, and excluded directories.  Use it \
-                       before writing COBOL code, so that it follows the \
-                       expected format and dialect, or to find where the \
-                       copybooks of a program are."
-    ~inputSchema:(tool_input_schema [
-        file_path_property ~default:"the file shown in the active editor, or \
-                                    else the first workspace folder";
-      ]);
-  languageModelTool ()
-    ~name:"superbol_cobol_control_flow"
-    ~displayName:"COBOL Control Flow"
-    ~toolReferenceName:"cobolControlFlow"
-    ~icon:"$(type-hierarchy)"
-    ~userDescription:"Control flow between the paragraphs and sections of a \
-                      COBOL program."
-    ~modelDescription:"Get the control flow graph of a COBOL program, or of \
-                       one of its sections, between paragraphs and sections: \
-                       for each one, which paragraphs or sections it \
-                       PERFORMs, which it reaches with GO TO, and which it \
-                       falls through to, with 1-based line ranges.  Use it \
-                       to understand the overall logic of a program, or what \
-                       may run before or after a given paragraph, without \
-                       reading every statement.  When a file holds several \
-                       programs, or to get the graph of one section, the tool \
-                       lists the graph names that `name` accepts."
-    ~inputSchema:(tool_input_schema [
-        file_path_property ~default:"the file shown in the active editor";
-        "name", "string",
-        "Name of the graph: a program name, or a section name followed by \
-         its program name in parentheses, e.g. `MAIN-SECTION (PAYROLL)`.  \
-         Defaults to the program of the file, when it holds only one.";
-      ]);
-]
+let languageModelTools =
+  List.map begin fun (tool: Cobol_lsp.Tools.tool) ->
+    Manifest.languageModelTool ()
+      ~name:tool.name
+      ~displayName:tool.display_name
+      ~toolReferenceName:tool.reference_name
+      ~userDescription:tool.user_description
+      ~modelDescription:tool.model_description
+      ~inputSchema:(ezjsonm_of_yojson tool.input_schema)
+      ~canBeReferencedInPrompt:true
+      ~icon:{ icon_light = tool.icon; icon_dark = tool.icon }
+      ~tags:["cobol"; "superbol"]
+  end Cobol_lsp.Tools.definitions
 
 let contributes =
   Manifest.contributes ()

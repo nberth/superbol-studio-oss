@@ -1053,20 +1053,6 @@ module Diagnostic : sig
   val make : ?severity:DiagnosticSeverity.t -> message:string -> Range.t -> t
 end
 
-module DiagnosticCollection : sig
-  include Js.T
-
-  val name : t -> string
-
-  val get : t -> Uri.t -> Diagnostic.t list option
-
-  val forEach :
-       t
-    -> callback:
-         (uri:Uri.t -> diagnostics:Diagnostic.t list -> collection:t -> unit)
-    -> unit
-end
-
 module TextDocumentShowOptions : sig
   include Js.T
 
