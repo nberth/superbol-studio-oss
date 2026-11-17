@@ -88,6 +88,22 @@ val find_document
 val publish_cached_diagnostics
   : Lsp.Uri.t list -> t -> t * Lsp.Uri.t list
 
+(** {2 Queries} *)
+
+(** [is_open_file registry filename] tells whether the file named [filename]
+    is open, i.e. known from the contents the client sent. *)
+val is_open_file
+  : t -> string -> bool
+
+(** [workspace_symbols registry ~query ~limit] gives at most [limit] symbols
+    that match [query], best matches first, from open documents and the caches
+    of the projects (for files that are not open). *)
+val workspace_symbols
+  : t
+  -> query: string
+  -> limit: int
+  -> Lsp.Types.SymbolInformation.t list
+
 val jsonrpc_of_error
   : 'a error -> string -> Jsonrpc.Response.Error.t
 

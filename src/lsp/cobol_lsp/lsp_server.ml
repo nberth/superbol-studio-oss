@@ -963,6 +963,44 @@ let did_close DidCloseTextDocumentParams.{ textDocument = { uri } } registry =
     indirect_diags = URIMap.remove indirect_uri registry.indirect_diags }
 
 
+(** {2 Queries} *)
+
+
+(* Open documents are told apart from walked files by their canonical paths, as
+   both may spell the same file differently (e.g. the case of a Windows drive
+   letter, that [Lsp_utils.path_of_uri] lowercases). *)
+let is_open_file { docs; _ } =
+  let module StringSet = EzCompat.StringSet in
+  let canonical_path = Superbol_cache.Witness.canonical_path in
+  let open_files =
+    URIMap.fold (fun uri _ acc ->
+        StringSet.add (canonical_path @@ Lsp_utils.path_of_uri uri) acc)
+      docs StringSet.empty
+  in
+  fun filename -> StringSet.mem (canonical_path filename) open_files
+
+
+let workspace_symbols ({ projects; docs; params; _ } as registry) ~query ~limit =
+  (* Symbols of open documents are computed from their current contents. *)
+  let open_docs =
+    URIMap.fold begin fun uri doc acc ->
+      match Lsp_document.checked doc with
+      | { ptree; _ } ->
+          let filename = Lsp_utils.path_of_uri uri in
+          (uri, Lsp_workspace_symbols.of_ptree ~filename ptree) :: acc
+      | exception Lsp_document.(Unparseable _ | Copybook _) ->
+          acc
+    end docs []
+  in
+  let cached_docs =
+    Lsp_project.SET.to_seq projects |>
+    Seq.flat_map (Lsp_project_cache.workspace_symbols ~params
+                    ~except:(is_open_file registry))
+  in
+  Lsp_workspace_symbols.search ~query ~limit @@
+  Seq.append (List.to_seq open_docs) cached_docs
+
+
 (** {2 Miscellaneous} *)
 
 

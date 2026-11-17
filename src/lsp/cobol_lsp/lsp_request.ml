@@ -859,38 +859,10 @@ let handle_document_symbol registry (params: DocumentSymbolParams.t) =
    refined, and large responses mostly cost serialization time. *)
 let workspace_symbols_limit = 1000
 
-let handle_workspace_symbol
-    ({ projects; docs; params; _ }: registry)
-    (wsparams: WorkspaceSymbolParams.t) =
-  (* Symbols of open documents are computed from their current contents. *)
-  let open_docs =
-    URIMap.fold begin fun uri doc acc ->
-      match Lsp_document.checked doc with
-      | { ptree; _ } ->
-          let filename = Lsp_utils.path_of_uri uri in
-          (uri, Lsp_workspace_symbols.of_ptree ~filename ptree) :: acc
-      | exception Lsp_document.(Unparseable _ | Copybook _) ->
-          acc
-    end docs []
-  in
-  (* Open documents are told apart from walked files by their canonical paths,
-     as both may spell the same file differently (e.g. the case of a Windows
-     drive letter, that [Lsp_utils.path_of_uri] lowercases). *)
-  let canonical_path = Superbol_cache.Witness.canonical_path in
-  let open_files =
-    URIMap.fold (fun uri _ acc -> StringSet.add (canonical_path @@
-                                                 Lsp_utils.path_of_uri uri) acc)
-      docs StringSet.empty
-  in
-  let is_open filename = StringSet.mem (canonical_path filename) open_files in
-  let cached_docs =
-    Lsp_project.SET.to_seq projects |>
-    Seq.flat_map (Lsp_project_cache.workspace_symbols ~params ~except:is_open)
-  in
+let handle_workspace_symbol registry (wsparams: WorkspaceSymbolParams.t) =
   try
-    Some (Lsp_workspace_symbols.search ~query:wsparams.query
-            ~limit:workspace_symbols_limit @@
-          Seq.append (List.to_seq open_docs) cached_docs)
+    Some (Lsp_server.workspace_symbols registry ~query:wsparams.query
+            ~limit:workspace_symbols_limit)
   with e ->
     Lsp_error.internal "Caught exception: %a" Fmt.exn e
 
