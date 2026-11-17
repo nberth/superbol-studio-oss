@@ -300,6 +300,22 @@ let handle_get_possible_cfg registry params =
   Option.get
 
 
+(* Params: [{ "name": tool, "arguments": { ... } }]; reply: [{ "text": text,
+   "isError": bool }].  See {!Lsp_tools}. *)
+let handle_call_tool registry params =
+  let params = Jsonrpc.Structured.yojson_of_t params in
+  match Yojson.Safe.Util.(to_string @@ member "name" params,
+                          member "arguments" params) with
+  | name, (`Assoc _ | `Null as arguments) ->
+      let arguments = match arguments with `Assoc a -> a | _ -> [] in
+      let Lsp_tools.{ text; is_error } =
+        Lsp_tools.call registry ~name ~arguments in
+      `Assoc ["text", `String text; "isError", `Bool is_error]
+  | _ | exception Yojson.Safe.Util.Type_error _ ->
+      Lsp_error.invalid_params "param = %s (object with \"name\" and \
+                                \"arguments\" keys expected)"
+        (Yojson.Safe.to_string params)
+
 let handle_find_procedure registry params =
   let params = Jsonrpc.Structured.yojson_of_t params in
   let filename = Yojson.Safe.Util.to_string @@ Yojson.Safe.Util.member "uri" params in
@@ -1009,6 +1025,9 @@ let on_request
     | UnknownRequest { meth = "superbol/publishCachedDiagnostics";
                        params = Some param } ->
         handle_publish_cached_diagnostics param registry
+    | UnknownRequest { meth = "superbol/callTool";
+                       params = Some param } ->
+        Ok (handle_call_tool registry param, state)
     | UnknownRequest { meth = "superbol/findProcedure";
                        params = Some param } ->
         Ok (handle_find_procedure registry param, state)
