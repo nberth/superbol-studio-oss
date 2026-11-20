@@ -14,14 +14,10 @@
 open Ezcmd.V2
 open EZCMD.TYPES
 
-let get () =
-  let project_root = ref None and encoding = ref None in
-  let args = [
-    ["project-root"; "root"], Arg.File (fun f -> project_root := Some f),
-    EZCMD.info ~docv:"DIR" "Set the root of the project (autodetected on a \
-                            per-file basis otherwise)";
-
-    ["encoding"],
+let encoding () =
+  let encoding = ref None in
+  (fun () -> !encoding),
+  [ ["encoding"],
     Arg.String begin fun s ->
       (* Unsupported encodings are not an error, as the LSP server reads files
          as they are with those. *)
@@ -38,14 +34,22 @@ let get () =
       "Decode files as Visual Studio Code does with this value of its \
        `files.encoding' setting (e.g. `windows1252', `cp850').  Files are read \
        as they are by default, or (with a warning listing the supported \
-       encodings) if ENCODING is not supported";
-  ] in
+       encodings) if ENCODING is not supported" ]
+
+let get () =
+  let project_root = ref None in
+  let encoding, encoding_args = encoding () in
+  let args = [
+    ["project-root"; "root"], Arg.File (fun f -> project_root := Some f),
+    EZCMD.info ~docv:"DIR" "Set the root of the project (autodetected on a \
+                            per-file basis otherwise)";
+  ] @ encoding_args in
   let given arg ~default = match arg with None -> default | given -> given in
   let get ?(setup = Project_commands.default_setup) () =
     Project_commands.{
       setup with
       project_root = given !project_root ~default:setup.project_root;
-      encoding = given !encoding ~default:setup.encoding;
+      encoding = given (encoding ()) ~default:setup.encoding;
     }
   in
   get, args

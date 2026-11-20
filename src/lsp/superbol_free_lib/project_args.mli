@@ -21,6 +21,14 @@ val get
   -> (?setup:Project_commands.setup -> unit -> Project_commands.setup)
      * Ezcmd.V2.EZCMD.TYPES.arg_list
 
+(** [encoding ()] is the [--encoding] argument (part of those {!get} gives),
+    along with a function that gives the encoding it designates, if supported,
+    once arguments are parsed. *)
+val encoding
+  : unit
+  -> (unit -> Cobol_common.Text_encoding.t option)
+     * Ezcmd.V2.EZCMD.TYPES.arg_list
+
 (** [client_settings ~doc ()] is the [--client-settings] argument, for
     settings of the [superbol.cobol] section of an LSP client given as a JSON
     object (described with [doc]), along with a function that gives its value

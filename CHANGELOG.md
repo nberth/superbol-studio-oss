@@ -3,6 +3,7 @@
 ## [_] Next release
 
 ### Added
+- Command `superbol-free mcp`, a Model Context Protocol (MCP) server that gives the same tools to AI agents outside VS Code [#???](https://github.com/OCamlPro/superbol-studio-oss/pull/???)
 - Tools for AI agents in VS Code (e.g. Copilot in agent mode): outline of COBOL programs (`#cobolOutline`), symbol search (`#cobolSymbol`), problems (`#cobolProblems`), project settings (`#cobolSettings`), and control flow (`#cobolControlFlow`) [#???](https://github.com/OCamlPro/superbol-studio-oss/pull/???)
 - Proposal of a file name based on the `PROGRAM-ID` when saving an untitled COBOL document [#747](https://github.com/OCamlPro/superbol-studio-oss/pull/747)
 - Support for comment toggling, sensitive to source format [#746](https://github.com/OCamlPro/superbol-studio-oss/pull/746)

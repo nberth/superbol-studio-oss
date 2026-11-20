@@ -43,6 +43,12 @@ Welcome to SuperBOL Studio OSS
 
 .. toctree::
    :maxdepth: 2
+   :caption: AI agents
+
+   ai-agents
+
+.. toctree::
+   :maxdepth: 2
    :caption: Other resources
 
    API doc <https://ocamlpro.github.io/superbol-studio-oss/doc>
