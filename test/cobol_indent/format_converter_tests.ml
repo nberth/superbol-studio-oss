@@ -26,11 +26,24 @@ let words ~source_format contents =
     | w -> Some (Pretty.to_string "%a" Cobol_preproc.Text.pp_word w)
   end
 
+(* Joins alphanumeric literals concatenated with "&" (with the same
+   quote). *)
+let rec join_concatenations = function
+  | a :: "&" :: b :: rest
+    when String.length a >= 2 && String.length b >= 2 &&
+         (a.[0] = '"' || a.[0] = '\'') && b.[0] = a.[0] ->
+      join_concatenations
+        ((String.sub a 0 (String.length a - 1) ^
+          String.sub b 1 (String.length b - 1)) :: rest)
+  | w :: rest -> w :: join_concatenations rest
+  | [] -> []
+
 (* Shows the conversion of [contents] into [target], with a [|] after the
    last column of the text area of lines that reach it, and checks that the
    converted text gives the same words as the original. *)
 let show ?(source_format = Cobol_config.(SF SFFree)) ?(target = "FIXED")
-    ?keep_sequence_numbers ?add_source_format_directive contents =
+    ?right_margin ?keep_sequence_numbers ?add_source_format_directive
+    contents =
   let options = Prog_preproc.options ~source_format () in
   let src = SL.scan ~options ~filename:"prog.cob" contents in
   let target_format = Cobol_config.Options.format_of_string target in
@@ -41,9 +54,21 @@ let show ?(source_format = Cobol_config.(SF SFFree)) ?(target = "FIXED")
          | SF (_, FreePaging) -> max_int)
     | Auto -> assert false
   in
+  let last_col = match right_margin with
+    | Some c -> min c last_col
+    | None -> last_col
+  in
+  let target_name = target in
   let fixed, warnings =
-    match Cobol_indent.Format_converter.target_of_name target with
-    | Error msg -> failwith msg
+    let open Cobol_indent.Format_converter in
+    match
+      Result.bind (target_of_name target_name) begin fun t ->
+        match right_margin with
+        | Some c -> with_right_margin c t
+        | None -> Ok t
+      end
+    with
+    | Error msg -> raise (Invalid_argument msg)
     | Ok target ->
         Cobol_indent.Format_converter.convert ~target src ~eol:"\n"
           ?keep_sequence_numbers ?add_source_format_directive
@@ -55,8 +80,8 @@ let show ?(source_format = Cobol_config.(SF SFFree)) ?(target = "FIXED")
   end (String.split_on_char '\n' fixed);
   List.iter (fun Cobol_indent.Format_converter.{ line; message } ->
       Pretty.out "warning: line %d: %s@\n" line message) warnings;
-  let orig = words ~source_format contents
-  and conv = words ~source_format:target_format fixed in
+  let orig = join_concatenations (words ~source_format contents)
+  and conv = join_concatenations (words ~source_format:target_format fixed) in
   if orig = conv
   then Pretty.out "same words@\n"
   else Pretty.out "DIFFERENT words:@\n  %s@\n  %s@\n"
@@ -306,5 +331,109 @@ let%expect_test "floating-comments-in-free-format" =
     PROCEDURE DIVISION.
         DISPLAY "HELLO"     *> greetings
         STOP RUN. *> end
+
+    same words |}]
+
+let long_prog = {|PROCEDURE DIVISION.
+    DISPLAY "This is a very long literal that will not fit within the right margin, and that has ""quotes"" in it" UPON CONSOLE
+    MOVE A-VERY-LONG-DATA-NAME-1 TO B-VERY-LONG-DATA-NAME-2 C-VERY-LONG-DATA-NAME-3
+    MOVE X"0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789" TO Y
+*> a comment that is long enough to be wrapped at the right margin in free format
+    STOP RUN. *> a floating comment that would cross the right margin if left there
+|}
+
+let%expect_test "right-margin-free" =
+  show ~target:"FREE" ~right_margin:72 long_prog;
+  [%expect {|
+    PROCEDURE DIVISION.
+        DISPLAY "This is a very long literal that will not fit within " &
+           "the right margin, and that has ""quotes"" in it" UPON CONSOLE
+        MOVE A-VERY-LONG-DATA-NAME-1 TO B-VERY-LONG-DATA-NAME-2
+           C-VERY-LONG-DATA-NAME-3
+        MOVE
+           X"0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789"<- too long
+           TO Y
+    *> a comment that is long enough to be wrapped at the right margin in
+    *> free format
+    *> a floating comment that would cross the right margin if left there
+        STOP RUN.
+
+    warning: line 4: word "X\"0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789\"" extends beyond the text area
+    same words |}]
+
+let%expect_test "right-margin-variable" =
+  show ~target:"VARIABLE" ~right_margin:80 long_prog;
+  [%expect {|
+           PROCEDURE DIVISION.
+               DISPLAY "This is a very long literal that will not fit within the " &|
+                  "right margin, and that has ""quotes"" in it" UPON CONSOLE
+               MOVE A-VERY-LONG-DATA-NAME-1 TO B-VERY-LONG-DATA-NAME-2
+                  C-VERY-LONG-DATA-NAME-3
+               MOVE
+                  X"0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789"<- too long
+                  TO Y
+          * a comment that is long enough to be wrapped at the right margin in free
+          * format
+          * a floating comment that would cross the right margin if left there
+               STOP RUN.
+
+    warning: line 4: word "X\"0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789\"" extends beyond the text area
+    same words |}]
+
+let%expect_test "right-margin-cobolx" =
+  show ~target:"COBOLX" ~right_margin:72 long_prog;
+  [%expect {|
+     PROCEDURE DIVISION.
+         DISPLAY "This is a very long literal that will not fit within the r|
+    -    "ight margin, and that has ""quotes"" in it" UPON CONSOLE
+         MOVE A-VERY-LONG-DATA-NAME-1 TO B-VERY-LONG-DATA-NAME-2
+            C-VERY-LONG-DATA-NAME-3
+         MOVE X"0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789AB|
+    -    "CDEF0123456789" TO Y
+    * a comment that is long enough to be wrapped at the right margin in
+    * free format
+    * a floating comment that would cross the right margin if left there
+         STOP RUN.
+
+    same words |}]
+
+let%expect_test "right-margin-fixed" =
+  (* no effect *)
+  show ~target:"FIXED" ~right_margin:100 {|PROCEDURE DIVISION.
+    STOP RUN.
+|};
+  (try show ~target:"FREE" ~right_margin:60 "" with
+   | Invalid_argument msg -> Pretty.out "error: %s@\n" msg);
+  [%expect {|
+           PROCEDURE DIVISION.
+               STOP RUN.
+
+    same words
+    error: right margin 60 is less than 72 |}]
+
+let%expect_test "right-margin-debugging-line" =
+  show ~source_format:Cobol_config.(SF SFFixed) ~target:"FIXED" {|       PROCEDURE DIVISION.
+      D    DISPLAY A-VERY-LONG-DATA-NAME-1 B-VERY-LONG-DATA-NAME-2 C-VERY-LO
+      D        NG-NAME
+           STOP RUN.
+|};
+  show ~target:"FIXED" {|PROCEDURE DIVISION.
+>>D DISPLAY A-VERY-LONG-DATA-NAME-1 B-VERY-LONG-DATA-NAME-2 C-VERY-LONG-DATA-NAME-3
+    STOP RUN.
+|};
+  [%expect {|
+           PROCEDURE DIVISION.
+          D    DISPLAY A-VERY-LONG-DATA-NAME-1 B-VERY-LONG-DATA-NAME-2 C-VER|
+          D        NG-NAME
+               STOP RUN.
+
+    same words
+           PROCEDURE DIVISION.
+          D    DISPLAY A-VERY-LONG-DATA-NAME-1 B-VERY-LONG-DATA-NAME-2
+          D       C-VERY-LONG-DATA-NAME-3
+               STOP RUN.
+
+    prog.cob:2.0-2.83:
+    >> Error: Invalid >>D compiler directive
 
     same words |}]

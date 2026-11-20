@@ -30,6 +30,19 @@ val target: Cobol_config.source_format -> (target, string) result
 (** Same as {!target}, for a format given by its name (case insensitive). *)
 val target_of_name: string -> (target, string) result
 
+(** Smallest right margin (72). *)
+val min_right_margin: int
+
+(** [with_right_margin column target] restricts the text area of [target] so
+    that nothing is written after [column] (1-based); it has no effect if the
+    text area of [target] already ends before.  When the margin applies,
+    alphanumeric literals that do not fit are continued with a [-] indicator
+    if [target] allows it at the margin (COBOLX); otherwise, basic
+    alphanumeric literals are split into several literals concatenated with
+    [&] (other literals are left as is).  Gives an error message if [column]
+    is less than {!min_right_margin}. *)
+val with_right_margin: int -> target -> (target, string) result
+
 (** Names of the supported target formats. *)
 val supported_target_names: string list
 

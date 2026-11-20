@@ -271,9 +271,10 @@ let convert_source_format registry ~uri ~target ~keep_sequence_numbers
         ~eol:(Cobol_indent.Format_converter.eol_of_text text)
     end
 
-(* Params: [{ "uri": uri, "format": string, "keepSequenceNumbers": bool,
-   "addSourceFormatDirective": bool }], where the booleans are optional
-   (false by default); reply: [{ "text": string, "warnings": [ { "line": int,
+(* Params: [{ "uri": uri, "format": string, "rightMargin": int,
+   "keepSequenceNumbers": bool, "addSourceFormatDirective": bool }], where all
+   but "uri" and "format" are optional (no right margin, and false by
+   default); reply: [{ "text": string, "warnings": [ { "line": int,
    "message": string }, ... ] }], where "line" is 0-based. *)
 let handle_convert_source_format registry params : Yojson.Safe.t =
   with_uri params ~f:begin fun ~uri params ->
@@ -283,7 +284,15 @@ let handle_convert_source_format registry params : Yojson.Safe.t =
     let target =
       match List.assoc_opt "format" params with
       | Some (`String name) ->
-          (match Cobol_indent.Format_converter.target_of_name name with
+          let open Cobol_indent.Format_converter in
+          let target =
+            Result.bind (target_of_name name) begin fun target ->
+              match List.assoc_opt "rightMargin" params with
+              | Some (`Int margin) -> with_right_margin margin target
+              | _ -> Ok target
+            end
+          in
+          (match target with
            | Ok target -> target
            | Error msg -> Lsp_error.invalid_params "%s" msg)
       | _ ->

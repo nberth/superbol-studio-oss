@@ -31,6 +31,11 @@ type target =
                                with area A *)
     padded_literals: bool;  (* a continued literal extends up to the end of
                                the text area *)
+    split_literals: [`Continuation | `Concatenation];
+    (* how to split alphanumeric literals that do not fit: [`Continuation] on
+       the next line(s) with a [-] indicator, or [`Concatenation] of several
+       literals with [&] (when a right margin restricts the text area, and
+       continuation is not possible there) *)
   }
 
 let target (format: Cobol_config.source_format) =
@@ -43,13 +48,16 @@ let target (format: Cobol_config.source_format) =
   | SF (FixedIndic, FixedWidth { cut_at_col; alphanum_padding; _ }) ->
       Ok { name; indicator = `Fixed 6;
            width = Some (cut_at_col - 7);
-           padded_literals = alphanum_padding <> None }
+           padded_literals = alphanum_padding <> None;
+           split_literals = `Continuation }
   | SF (CBLXIndic, FixedWidth { cut_at_col; alphanum_padding; _ }) ->
       Ok { name; indicator = `Fixed 0;
            width = Some (cut_at_col - 1);
-           padded_literals = alphanum_padding <> None }
+           padded_literals = alphanum_padding <> None;
+           split_literals = `Continuation }
   | SF (NoIndic, FreePaging) ->
-      Ok { name; indicator = `Free; width = None; padded_literals = false }
+      Ok { name; indicator = `Free; width = None; padded_literals = false;
+           split_literals = `Concatenation }
   | SF ((XOpenIndic | CRTIndic | TrmIndic), _) ->
       Error (Printf.sprintf "conversion into %s format is not supported" name)
 
@@ -58,6 +66,29 @@ let target_of_name name =
   | SF format -> target format
   | Auto | exception Invalid_argument _ ->
       Error (Printf.sprintf "invalid target source format %S" name)
+
+let min_right_margin = 72
+
+(* 0-based column where the text area starts *)
+let text_column target =
+  match target.indicator with `Fixed seq_width -> seq_width + 1 | `Free -> 0
+
+let with_right_margin right_margin target =
+  if right_margin < min_right_margin then
+    Error (Printf.sprintf "right margin %d is less than %d" right_margin
+             min_right_margin)
+  else
+    let margin_width = right_margin - text_column target in
+    match target.width with
+    | Some width when width <= margin_width ->
+        Ok target                                                (* no effect *)
+    | _ ->
+        Ok { target with
+             width = Some margin_width;
+             (* literals that are padded up to the end of the text area of the
+                format cannot be continued at the margin *)
+             split_literals = if target.padded_literals || target.indicator = `Free
+               then `Concatenation else `Continuation }
 
 let supported_target_names =
   [ "FIXED"; "COBOL85"; "VARIABLE"; "XCARD"; "COBOLX"; "FREE" ]
@@ -177,7 +208,10 @@ let comment_lines ~target src ~seq (line: SL.line) (c: SL.comment) =
   List.mapi (fun i content ->
       { seq = if i = 0 then seq else blank_seq; kind = Comment indicator;
         content })
-    (wrap ~width:target.width (rstrip content))
+    (wrap (rstrip content)
+       ~width:(match target.indicator with             (* room for the "*>" *)
+           | `Free -> Option.map (fun w -> w - 2) target.width
+           | `Fixed _ -> target.width))
 
 (* --- *)
 
@@ -221,15 +255,20 @@ let close_literal ~warn ~lnum text =
 (* Lays out [items] from column [indent] (relatively to area A), splitting
    them into several lines if needed. *)
 let layout ~target ?(kind = Code) ~seq ~lnum ~warn ~indent items =
+  let base_kind = kind in
   let total =
     List.fold_left (fun acc { gap; text } -> acc + gap + String.length text)
       0 items
   in
-  let fits n = match target.width with None -> true | Some w -> n <= w in
-  let avail col = match target.width with None -> max_int | Some w -> w - col in
+  let width = match target.width, target.indicator, kind with
+    | Some w, `Free, Debug -> Some (w - 4)           (* room for the ">>D " *)
+    | w, _, _ -> w
+  in
+  let fits n = match width with None -> true | Some w -> n <= w in
+  let avail col = match width with None -> max_int | Some w -> w - col in
   (* shift lines that are too long to the left, without leaving area B *)
   let indent =
-    match target.width with
+    match width with
     | Some width when indent + total > width && indent >= area_b ->
         max area_b (width - total)
     | _ -> indent
@@ -248,7 +287,8 @@ let layout ~target ?(kind = Code) ~seq ~lnum ~warn ~indent items =
   let has_word = ref false in
   let new_line ~at =
     flush ~kind:!kind b;
-    kind := Code;
+    (* lines that continue a debugging line are debugging lines as well *)
+    kind := (match base_kind with Debug -> Debug | _ -> Code);
     has_word := false;
     Buffer.add_string b (spaces at)
   in
@@ -292,9 +332,52 @@ let layout ~target ?(kind = Code) ~seq ~lnum ~warn ~indent items =
       Buffer.add_string b (spaces shift);
       Buffer.add_string b (String.sub text 0 cut);
       new_line ~at:area_b;
+      if base_kind = Debug then
+        warn lnum "literal continued on a line that is not a debugging line";
       kind := Continuation;
       place_literal (String.make 1 q ^ String.sub text cut (len - cut))
         ~qpos:0 ~q
+  in
+  (* Places basic alphanumeric literal [text] (delimited with [q]) from the
+     current position, splitting it into several literals concatenated with
+     [&] as needed.  Pieces are never cut between two quotes that stand for
+     one quote. *)
+  let rec concat_literal text ~q =
+    let len = String.length text in
+    let avail = avail (Buffer.length b) in
+    if len <= avail then
+      Buffer.add_string b text
+    else
+      (* [cut] is the length of the body of the first piece: the piece and
+         " &" must fit *)
+      let max_body = avail - 4 in
+      let body = String.sub text 1 (len - 2) in
+      (* [last] is the last valid cut so far, and [last_space] the last one
+         right after a space, that is preferred if not too far back *)
+      let rec find_cut i last last_space =
+        if i > max_body || i >= String.length body then
+          if last_space > 0 && last_space >= last - 20 then last_space else last
+        else
+          let last, last_space =
+            if i = 0 then last, last_space
+            else i, if body.[i - 1] = ' ' then i else last_space
+          in
+          find_cut (if body.[i] = q then i + 2 else i + 1) last last_space
+      in
+      match find_cut 0 0 0 with
+      | 0 when !has_word ->
+          new_line ~at:cont_indent;
+          concat_literal text ~q
+      | 0 ->
+          warn lnum "literal could not be split to fit within the right margin";
+          Buffer.add_string b text
+      | cut ->
+          let q' = String.make 1 q in
+          Buffer.add_string b (q' ^ String.sub body 0 cut ^ q' ^ " &");
+          new_line ~at:cont_indent;
+          has_word := true;
+          concat_literal
+            (q' ^ String.sub body cut (String.length body - cut) ^ q') ~q
   in
   Buffer.add_string b (spaces indent);
   List.iter begin fun { gap; text } ->
@@ -304,14 +387,23 @@ let layout ~target ?(kind = Code) ~seq ~lnum ~warn ~indent items =
     if fits (col + gap + len) then begin
       Buffer.add_string b (spaces gap);
       Buffer.add_string b text
-    end else begin match literal_quote text with
-      | Some (qpos, q) ->
+    end else begin match literal_quote text, target.split_literals with
+      | Some (0, q), `Concatenation ->
+          (* move the literal to the next line if it fits there; split it
+             otherwise *)
+          if !has_word && fits (cont_indent + len)
+          then new_line ~at:cont_indent
+          else if !has_word && not (fits (col + gap + 6))
+          then new_line ~at:cont_indent
+          else Buffer.add_string b (spaces gap);
+          concat_literal text ~q
+      | Some (qpos, q), `Continuation ->
           (* start the literal here if its quote and a character fit *)
           if fits (col + gap + qpos + 2)
           then Buffer.add_string b (spaces gap)
           else if !has_word then new_line ~at:cont_indent;
           place_literal text ~qpos ~q
-      | None ->
+      | Some _, `Concatenation | None, _ ->
           if !has_word then new_line ~at:cont_indent;
           if not (fits (Buffer.length b + len)) then
             warn lnum (Printf.sprintf "word %S extends beyond the text area"
@@ -375,9 +467,15 @@ let code_lines ~target src ~seq ~warn (line: SL.line) =
 (* Debugging line, recognized from its raw text. *)
 let debug_line src ~seq (line: SL.line) =
   let text_col = SL.text_column line.format in
-  let content ~from =
-    rstrip (expand src line ~first:from ~last:(String.length line.text))
+  let last =                        (* end of the text area of the source line *)
+    match SL.cut_column line.format with
+    | None -> String.length line.text
+    | Some cut_col ->
+        match SL.locate src line cut_col with
+        | Char i | Tab { offset = i; _ } -> i
+        | Short -> String.length line.text
   in
+  let content ~from = rstrip (expand src line ~first:from ~last) in
   if SL.has_indicator line.format then
     match SL.locate src line (text_col - 1) with
     | Char i when line.text.[i] = 'D' || line.text.[i] = 'd' ->
@@ -435,7 +533,16 @@ let convert_line ~target src ~keep_sequence_numbers ~warn (line: SL.line) =
     else if line.continued || is_blank line.text then
       []                    (* continuation of a previous line, or blank line *)
     else match debug_line src ~seq line with
-      | Some l -> [l]
+      | Some l ->
+          let width = match target.indicator with
+            | `Free -> Option.map (fun w -> w - 4) target.width
+            | `Fixed _ -> target.width
+          in
+          if match width with
+            | Some w -> String.length l.content > w
+            | None -> false
+          then warn line.lnum "debugging line extends beyond the text area";
+          [l]
       | None when floating <> [] -> []
       | None ->
           (* e.g, text in the sequence area only *)
@@ -459,9 +566,14 @@ let convert_line ~target src ~keep_sequence_numbers ~warn (line: SL.line) =
                 in
                 spaces (max 1 gap) ^ rstrip c.comment_text) floating
           in
-          List.rev ({ last with content = last.content ^
-                                          String.concat "" comments }
-                    :: rev_main)
+          let content = last.content ^ String.concat "" comments in
+          if match target.width with
+            | Some w -> String.length content > w
+            | None -> false
+          then (* move them on comment lines before the code *)
+            List.concat_map (comment_lines ~target src ~seq:blank_seq line)
+              floating @ main
+          else List.rev ({ last with content } :: rev_main)
       | [] -> main
   in
   let blank = line.words = [] && line.comments = [] &&

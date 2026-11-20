@@ -281,10 +281,36 @@ let convert_source_format ?text_editor instance =
                       ~title:"Convert Source Format"
                       ~placeHolder:"Target source format")
       in
-      let* directive =
+      let* right_margin =
         match format with
-        | None -> Promise.return None
-        | Some _ ->
+        | Some ("VARIABLE" | "XCARD" | "COBOLX" | "FREE") ->
+            let validateInput ~value =
+              Promise.return @@
+              match String.trim value with
+              | "" -> None
+              | v -> match int_of_string_opt v with
+                | Some c when c >= 72 -> None
+                | _ -> Some "Expected a column number, at least 72"
+            in
+            let+ margin =
+              Vscode.Window.showInputBox ()
+                ~options:(Vscode.InputBoxOptions.create ()
+                            ~title:"Convert Source Format"
+                            ~prompt:"Right margin: column after which nothing \
+                                     is written (leave empty for none)"
+                            ~placeHolder:"e.g, 80"
+                            ~validateInput)
+            in
+            (match margin with
+             | None -> None                                       (* cancelled *)
+             | Some m -> Some (int_of_string_opt (String.trim m)))
+        | _ ->
+            Promise.return (Some None)
+      in
+      let* directive =
+        match format, right_margin with
+        | None, _ | _, None -> Promise.return None
+        | Some _, Some _ ->
             Vscode.Window.showQuickPick ()
               ~items:[without_directive; with_directive]
               ~options:(Vscode.QuickPickOptions.create ()
@@ -292,17 +318,19 @@ let convert_source_format ?text_editor instance =
                           ~placeHolder:"Insert a >>SOURCE FORMAT directive \
                                         as first line?")
       in
-      match format, directive with
-      | None, _ | _, None ->
+      match format, right_margin, directive with
+      | None, _, _ | _, None, _ | _, _, None ->
           Promise.Result.return ()                              (* cancelled *)
-      | Some format, Some directive ->
+      | Some format, Some right_margin, Some directive ->
           let data =
-            Jsonoo.Encode.(object_ [
+            Jsonoo.Encode.(object_ @@ [
                 "uri", string @@
                 Vscode.Uri.toString (Vscode.TextDocument.uri document) ();
                 "format", string format;
                 "addSourceFormatDirective", bool (directive = with_directive);
-              ])
+              ] @ match right_margin with
+                | Some c -> ["rightMargin", int c]
+                | None -> [])
           in
           let decode json =
             let open Jsonoo.Decode in

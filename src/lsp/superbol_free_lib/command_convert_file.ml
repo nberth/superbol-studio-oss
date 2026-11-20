@@ -14,10 +14,18 @@
 open Ezcmd.V2
 open EZCMD.TYPES
 
-let action ~target ~keep_sequence_numbers ~add_source_format_directive
+let action ~target:target_name ?right_margin ~keep_sequence_numbers
+    ~add_source_format_directive
     ~inplace ?suffix Common_args.{ preproc_options; platform; _ } files =
   let target =
-    match Cobol_indent.Format_converter.target_of_name target with
+    let open Cobol_indent.Format_converter in
+    match
+      Result.bind (target_of_name target_name) begin fun target ->
+        match right_margin with
+        | None -> Ok target
+        | Some margin -> with_right_margin margin target
+      end
+    with
     | Ok target -> target
     | Error msg -> Pretty.failwith "%s" msg
   in
@@ -62,6 +70,7 @@ let cmd =
   let inplace = ref false in
   let suffix = ref None in
   let target = ref "FIXED" in
+  let right_margin = ref None in
   let keep_sequence_numbers = ref false in
   let add_source_format_directive = ref false in
   let common, common_args = Common_args.get () in
@@ -70,6 +79,7 @@ let cmd =
     (fun () ->
        action
          ~target:!target
+         ?right_margin:!right_margin
          ~keep_sequence_numbers:!keep_sequence_numbers
          ~add_source_format_directive:!add_source_format_directive
          ~inplace:!inplace
@@ -86,6 +96,16 @@ let cmd =
                     fun f -> target := f),
         EZCMD.info ~docv:"FORMAT"
           "Target source format (FIXED by default)";
+
+        [ "right-margin" ], Arg.Int (fun c -> right_margin := Some c),
+        EZCMD.info ~docv:"COLUMN"
+          (Printf.sprintf
+             "Write nothing after $(docv) (at least %d), in target formats \
+              whose text area ends after it (VARIABLE, XCARD, COBOLX, and \
+              FREE).  Alphanumeric literals that do not fit are then split \
+              into several literals concatenated with $(b,&) (or continued \
+              on the next line in COBOLX format)"
+             Cobol_indent.Format_converter.min_right_margin);
 
         [ "inplace" ], Arg.Set inplace,
         EZCMD.info "Modify files in place";
