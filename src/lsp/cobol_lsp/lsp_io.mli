@@ -24,6 +24,20 @@ val initialize_channels: unit -> unit
     stream.  Raises {!End_of_file} upon end of input stream. *)
 val read_message: unit -> Jsonrpc.Packet.t
 
+(** {2 Output} *)
+
+(** Where the messages of the server go. *)
+type output =
+  | Client
+    (** On standard output, for the LSP client (the default). *)
+  | Messages_to of Format.formatter
+    (** There is no LSP client, e.g. when the server runs in-process for
+        another front-end (that may own standard output): messages for logs
+        and users are printed as text on the given formatter, and every other
+        message (diagnostics, requests, responses...) is dropped. *)
+
+val set_output: output -> unit
+
 (** [send_response response] sends out a json RPC response on standard
     output. *)
 val send_response: Jsonrpc.Response.t -> unit

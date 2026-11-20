@@ -95,11 +95,42 @@ let read_message () : Jsonrpc.Packet.t =
   | _, None ->
       parse_error "missing content-length header"
 
-(** [send_json json] sends out a json rpc package. *)
+(** {2 Output} *)
+
+type output =
+  | Client
+  | Messages_to of Format.formatter
+
+let output = ref Client
+
+let set_output o =
+  output := o
+
+let message_type_name : Lsp.Types.MessageType.t -> string = function
+  | Error -> "error"
+  | Warning -> "warning"
+  | Info -> "info"
+  | Log -> "log"
+
+(** [print_message ppf notif] prints [notif] on [ppf] if it is a message for
+    logs or for users, and drops it otherwise. *)
+let print_message ppf (notif: Jsonrpc.Notification.t) =
+  match Lsp.Server_notification.of_jsonrpc notif with
+  | Ok (LogMessage { message; type_ } | ShowMessage { message; type_ }) ->
+      Format.fprintf ppf "[%s] %s@." (message_type_name type_) message
+  | Ok _ | Error _ ->
+      ()
+
+(** [send_json json] sends out a json rpc package, unless there is no
+    client. *)
 let send_json json =
-  let str = Yojson.Safe.to_string json in
-  IO.printf "Content-Length: %d\r\n\r\n%s\n" (String.length str + 1) str; (* with \n *)
-  ()
+  match !output with
+  | Client ->
+      let str = Yojson.Safe.to_string json in
+      IO.printf "Content-Length: %d\r\n\r\n%s\n" (String.length str + 1) str
+      (* with \n *)
+  | Messages_to _ ->
+      ()
 
 (** [send_response response] sends out a json RPC response on standard
     output. *)
@@ -113,7 +144,9 @@ let send_request request =
 (** [send_notification notif] sends out a json RPC notification on standard
     output. *)
 let send_notification notif =
-  send_json @@ Jsonrpc.Notification.yojson_of_t notif
+  match !output with
+  | Client -> send_json @@ Jsonrpc.Notification.yojson_of_t notif
+  | Messages_to ppf -> print_message ppf notif
 
 (** [send_diagnostics ~uri diagnostics] sends out a list of diagnostics that
     pertain to the given URI. *)
