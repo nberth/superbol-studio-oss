@@ -47,7 +47,7 @@ let line_revtokens (line: Source_lines.line) =
         lex_slice line.text ~first ~last
     | { Source_lines.end_offset = Some e; _ } :: words ->
         split_words first e words
-    | { start_offset; end_offset = None } :: _ ->
+    | { start_offset; end_offset = None; _ } :: _ ->
         let len = String.length line.text - start_offset in
         (CHARS (String.uppercase_ascii (String.sub line.text start_offset len)),
          start_offset, len) ::

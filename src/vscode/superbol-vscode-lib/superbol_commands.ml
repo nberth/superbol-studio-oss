@@ -134,6 +134,15 @@ let _toggle_comments =
       in ()
     end
 
+let _convert_source_format =
+  command "superbol.convertSourceFormat" @@ Instance
+    begin fun instance ~args:_ ->
+      let _: unit Promise.t =
+        Promise.then_ ~fulfilled:Superbol_printer.show_error_message @@
+        Superbol_instance.convert_source_format instance
+      in ()
+    end
+
 let _save_untitled =
   command "superbol.saveUntitled" @@ Instance
     begin fun instance ~args:_ ->

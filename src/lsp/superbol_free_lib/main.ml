@@ -19,6 +19,7 @@ let public_subcommands = [
   Command_cache.status_cmd;
   Command_cache.trim_cmd;
   Command_check_syntax.cmd;
+  Command_convert_file.cmd;
   Command_indent_file.cmd;
   Command_json_vscode.cmd;
   Command_lsp.cmd;

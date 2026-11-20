@@ -1,6 +1,6 @@
 (library
  (name test_cobol_indent)
- (modules source_lines_tests)
+ (modules source_lines_tests format_converter_tests)
  (preprocess
    (pps ppx_expect))
  (inline_tests

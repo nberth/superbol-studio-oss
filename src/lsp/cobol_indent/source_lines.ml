@@ -20,6 +20,7 @@ type word =
   {
     start_offset: int;
     end_offset: int option;
+    text: string option;
   }
 
 type comment =
@@ -38,6 +39,7 @@ type line =
     comments: comment list;
     continued: bool;
     continues: bool;
+    source_format_directive: bool;
   }
 
 type t =
@@ -90,6 +92,7 @@ type acc_line =
     mutable rev_words: word list;
     mutable rev_comments: comment list;
     mutable is_continued: bool;
+    mutable is_source_format_directive: bool;
     mutable line_format: SF.any option;
   }
 
@@ -102,7 +105,7 @@ let scan ~(options: Cobol_preproc.Options.preproc_options) ~filename contents =
   let acc =
     Array.init nlines
       (fun _ -> { rev_words = []; rev_comments = []; is_continued = false;
-                  line_format = None })
+                  is_source_format_directive = false; line_format = None })
   in
   let valid l = 1 <= l && l <= nlines in
   let add_word w =
@@ -116,12 +119,22 @@ let scan ~(options: Cobol_preproc.Options.preproc_options) ~filename contents =
         let len = String.length texts.(s.pos_lnum - 1) in
         let start_offset = min len (s.pos_cnum - s.pos_bol) in
         let a = acc.(s.pos_lnum - 1) in
+        let text = match ~&w with
+          | Cobol_preproc.Text.(Alphanum _ | AlphanumPrefix _) ->
+              Some (Pretty.to_string "%a" Cobol_preproc.Text.pp_word ~&w)
+          | _ when e.pos_lnum <> s.pos_lnum ->
+              Some (Pretty.to_string "%a" Cobol_preproc.Text.pp_word ~&w)
+          | _ ->
+              None
+        in
         if e.pos_lnum = s.pos_lnum then
           a.rev_words <- { start_offset;
-                           end_offset = Some (min len (e.pos_cnum - e.pos_bol)) }
+                           end_offset = Some (min len (e.pos_cnum - e.pos_bol));
+                           text }
                          :: a.rev_words
         else begin
-          a.rev_words <- { start_offset; end_offset = None } :: a.rev_words;
+          a.rev_words <- { start_offset; end_offset = None; text }
+                         :: a.rev_words;
           for l = s.pos_lnum + 1 to min e.pos_lnum nlines do
             acc.(l - 1).is_continued <- true
           done
@@ -136,6 +149,14 @@ let scan ~(options: Cobol_preproc.Options.preproc_options) ~filename contents =
       ~src_options:Cobol_preproc.Src_options.{ tab_stops; mf_comments }
       ~dialect:(Cobol_config.dialect config)
       ~on_change_of_source_format:(fun sf (l, changes) -> l, (l, sf) :: changes)
+      ~on_compiler_directive:begin fun l cdir res ->
+        begin match ~&cdir with
+          | Cobol_preproc.Directives.CDir_source_format _ when valid l ->
+              acc.(l - 1).is_source_format_directive <- true
+          | _ -> ()
+        end;
+        res
+      end
       ~on_comments:begin fun comments res ->
         List.iter begin fun Cobol_preproc.Text.{ comment_loc = (s, _);
                                                   comment_kind;
@@ -175,6 +196,7 @@ let scan ~(options: Cobol_preproc.Options.preproc_options) ~filename contents =
       { lnum = i + 1; text; format = !format; words;
         comments = List.rev a.rev_comments;
         continued = a.is_continued;
+        source_format_directive = a.is_source_format_directive;
         continues = List.exists (fun w -> w.end_offset = None) words }
     end texts
   in

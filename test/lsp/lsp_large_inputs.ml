@@ -84,6 +84,15 @@ let check (prog, pos) =
     | None -> "none"
     | Some l -> string_of_int (List.length l)
   end;
+  run "converted lines" begin fun () ->
+    let target =
+      Result.get_ok @@ Cobol_indent.Format_converter.target_of_name "FREE" in
+    match convert_source_format server ~uri:textDocument.uri ~target
+            ~keep_sequence_numbers:false ~add_source_format_directive:false with
+    | None -> "none"
+    | Some (text, _) ->
+        string_of_int (List.length (String.split_on_char '\n' text))
+  end;
   Option.iter begin fun position ->
     run "hover" begin fun () ->
       match hover server (HoverParams.create ~position ~textDocument ()) with
@@ -132,6 +141,7 @@ let%expect_test "many-data-items" =
     document symbols: 20015
     code lenses: 20010
     formatting edits: 0
+    converted lines: 20018
     hover: some
     definitions: 1
     references: 2
@@ -151,6 +161,7 @@ let%expect_test "long-sentence" =
     document symbols: 15
     code lenses: 10
     formatting edits: 0
+    converted lines: 20018
     hover: some
     definitions: 1
     references: 2002
@@ -172,6 +183,7 @@ let%expect_test "many-paragraphs" =
     document symbols: 20015
     code lenses: 20010
     formatting edits: 0
+    converted lines: 60017
     hover: some
     definitions: 1
     references: 20001
@@ -192,6 +204,7 @@ let%expect_test "long-condition" =
     document symbols: 15
     code lenses: 10
     formatting edits: 20001
+    converted lines: 20019
     hover: some
     definitions: 1
     references: 2002
@@ -212,6 +225,7 @@ let%expect_test "long-expression" =
     document symbols: 15
     code lenses: 10
     formatting edits: 20000
+    converted lines: 20019
     hover: some
     definitions: 1
     references: 2002

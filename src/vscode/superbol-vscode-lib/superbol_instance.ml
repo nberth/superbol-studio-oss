@@ -263,6 +263,84 @@ let toggle_comments ?text_editor instance =
 
 (* --- *)
 
+(** Asks for a target source format, and whether to insert a [>>SOURCE
+    FORMAT] directive, and then opens a new (untitled) editor beside the
+    current one, with the text of the current document converted into that
+    format. *)
+let convert_source_format ?text_editor instance =
+  match current_document ?text_editor () with
+  | None ->
+      Promise.return @@ Error No_active_text_editor
+  | Some document ->
+      let without_directive = "Without a >>SOURCE FORMAT directive"
+      and with_directive = "With a >>SOURCE FORMAT directive" in
+      let* format =
+        Vscode.Window.showQuickPick ()
+          ~items:["FIXED"; "COBOL85"; "VARIABLE"; "XCARD"; "COBOLX"; "FREE"]
+          ~options:(Vscode.QuickPickOptions.create ()
+                      ~title:"Convert Source Format"
+                      ~placeHolder:"Target source format")
+      in
+      let* directive =
+        match format with
+        | None -> Promise.return None
+        | Some _ ->
+            Vscode.Window.showQuickPick ()
+              ~items:[without_directive; with_directive]
+              ~options:(Vscode.QuickPickOptions.create ()
+                          ~title:"Convert Source Format"
+                          ~placeHolder:"Insert a >>SOURCE FORMAT directive \
+                                        as first line?")
+      in
+      match format, directive with
+      | None, _ | _, None ->
+          Promise.Result.return ()                              (* cancelled *)
+      | Some format, Some directive ->
+          let data =
+            Jsonoo.Encode.(object_ [
+                "uri", string @@
+                Vscode.Uri.toString (Vscode.TextDocument.uri document) ();
+                "format", string format;
+                "addSourceFormatDirective", bool (directive = with_directive);
+              ])
+          in
+          let decode json =
+            let open Jsonoo.Decode in
+            let warning json =
+              field "line" int json, field "message" string json in
+            nullable (fun json -> field "text" string json,
+                                  field "warnings" (list warning) json) json
+          in
+          lsp_request instance ~meth:"superbol/convertSourceFormat" ~data |>
+          Promise.Result.map decode >>= function
+          | Ok None ->
+              Promise.Result.return ()
+          | Ok (Some (content, warnings)) ->
+              let* document =
+                Vscode.Workspace.openTextDocument
+                  (`Interactive (Some { language = "cobol"; content }))
+              in
+              let+ _ =
+                Vscode.Window.showTextDocument ()
+                  ~document:(`TextDocument document) ~column:Beside
+              in
+              List.iter (fun (line, message) ->
+                  Superbol_printer.log "Conversion into %s format: line %d: %s"
+                    format (line + 1) message) warnings;
+              if warnings <> [] then begin
+                let message =
+                  Printf.sprintf "Conversion into %s format: %d warning(s); \
+                                  see the \"SuperBOL Studio Extension\" output"
+                    format (List.length warnings)
+                in
+                let _ = Vscode.Window.showWarningMessage () ~message in ()
+              end;
+              Ok ()
+          | Error _ as e ->
+              Promise.return e
+
+(* --- *)
+
 let compilation_unit_names ~document instance =
   let data =
     Jsonoo.Encode.(object_ [

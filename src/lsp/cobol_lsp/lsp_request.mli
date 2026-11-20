@@ -69,6 +69,13 @@ module INTERNAL: sig
     -> uri:Lsp.Types.DocumentUri.t
     -> Lsp.Types.Range.t list
     -> Lsp.Types.TextEdit.t list option
+  val convert_source_format
+    : Lsp_server.t
+    -> uri:Lsp.Types.DocumentUri.t
+    -> target:Cobol_indent.Format_converter.target
+    -> keep_sequence_numbers:bool
+    -> add_source_format_directive:bool
+    -> (string * Cobol_indent.Format_converter.warning list) option
   val compilation_unit_names
     : Lsp_server.t
     -> uri:Lsp.Types.DocumentUri.t

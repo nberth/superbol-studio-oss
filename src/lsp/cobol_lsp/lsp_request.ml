@@ -254,6 +254,63 @@ let handle_compilation_unit_names registry : Jsonrpc.Structured.t -> Yojson.Safe
 
 (* --- *)
 
+let convert_source_format registry ~uri ~target ~keep_sequence_numbers
+    ~add_source_format_directive =
+  try_with_doc registry (TextDocumentIdentifier.create ~uri)
+    ~f:begin fun ~doc ->
+      let platform = Lsp_platform.record in
+      let text = Lsp.Text_document.text doc.Lsp_document.textdoc in
+      let src =
+        Cobol_indent.Source_lines.scan text
+          ~options:(Lsp_document.preproc_options ~platform doc)
+          ~filename:(Lsp_utils.path_of_uri uri)
+      in
+      Option.some @@
+      Cobol_indent.Format_converter.convert src ~target
+        ~keep_sequence_numbers ~add_source_format_directive
+        ~eol:(Cobol_indent.Format_converter.eol_of_text text)
+    end
+
+(* Params: [{ "uri": uri, "format": string, "keepSequenceNumbers": bool,
+   "addSourceFormatDirective": bool }], where the booleans are optional
+   (false by default); reply: [{ "text": string, "warnings": [ { "line": int,
+   "message": string }, ... ] }], where "line" is 0-based. *)
+let handle_convert_source_format registry params : Yojson.Safe.t =
+  with_uri params ~f:begin fun ~uri params ->
+    let bool key =
+      match List.assoc_opt key params with Some (`Bool b) -> b | _ -> false
+    in
+    let target =
+      match List.assoc_opt "format" params with
+      | Some (`String name) ->
+          (match Cobol_indent.Format_converter.target_of_name name with
+           | Ok target -> target
+           | Error msg -> Lsp_error.invalid_params "%s" msg)
+      | _ ->
+          Lsp_error.invalid_params "param = %s (\"format\" key mapping to a \
+                                    source format name expected)\
+                                   " Yojson.Safe.(to_string (`Assoc params))
+    in
+    match
+      convert_source_format registry ~uri ~target
+        ~keep_sequence_numbers:(bool "keepSequenceNumbers")
+        ~add_source_format_directive:(bool "addSourceFormatDirective")
+    with
+    | Some (text, warnings) ->
+        `Assoc [
+          "text", `String text;
+          "warnings", `List (List.rev @@ List.rev_map begin
+              fun Cobol_indent.Format_converter.{ line; message } ->
+                `Assoc [ "line", `Int (line - 1);
+                         "message", `String message ]
+            end warnings);
+        ]
+    | None ->
+        `Null
+  end
+
+(* --- *)
+
 (* Params: [{ "uris": [ uri, ... ] }]; reply: [{ "missed": [ uri, ... ] }]. *)
 let handle_publish_cached_diagnostics param registry =
   try
@@ -947,6 +1004,9 @@ let on_request
     | UnknownRequest { meth = "superbol/editionsToToggleComments";
                        params = Some param } ->
         Ok (handle_toggle_comments registry param, state)
+    | UnknownRequest { meth = "superbol/convertSourceFormat";
+                       params = Some param } ->
+        Ok (handle_convert_source_format registry param, state)
     | UnknownRequest { meth = "superbol/compilationUnitNames";
                        params = Some param } ->
         Ok (handle_compilation_unit_names registry param, state)
@@ -1039,5 +1099,6 @@ module INTERNAL = struct
   let semtoks_range = handle_semtoks_range
   let workspace_symbol = handle_workspace_symbol
   let toggle_comments = toggle_comments
+  let convert_source_format = convert_source_format
   let compilation_unit_names = compilation_unit_names
 end

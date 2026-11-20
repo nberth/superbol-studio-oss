@@ -21,10 +21,11 @@ let show ?(source_format = Cobol_config.(SF SFFixed)) ?tab_stops contents =
   let src = SL.scan ~options ~filename:"prog.cob" contents in
   Array.iter begin fun (line: SL.line) ->
     let words =
-      List.map (fun SL.{ start_offset; end_offset } ->
-          match end_offset with
-          | Some e -> Printf.sprintf "%d-%d" start_offset e
-          | None -> Printf.sprintf "%d-" start_offset) line.words
+      List.map (fun SL.{ start_offset; end_offset; text } ->
+          match end_offset, text with
+          | Some e, _ -> Printf.sprintf "%d-%d" start_offset e
+          | None, Some t -> Printf.sprintf "%d-:%S" start_offset t
+          | None, None -> Printf.sprintf "%d-" start_offset) line.words
     and comments =
       List.map (fun SL.{ comment_offset; comment_kind; comment_text } ->
           Printf.sprintf "%s@%d:%S"
@@ -41,15 +42,15 @@ let show ?(source_format = Cobol_config.(SF SFFixed)) ?tab_stops contents =
 let%expect_test "fixed-format-lines" =
   show {|      * comment line
        DISPLAY "A" *> floating
-       DISPLAY "a long literal that is continued on the next line abcd
-      -    "efgh"
+       DISPLAY "a long literal that is continued on the next line ""ab
+      -    "cd""ef"
       D    DISPLAY "debug"
       / page
 |};
   [%expect {|
     1: text@7 words=[] comments=[line@6:"* comment line"]
     2: text@7 words=[7-14 15-18] comments=[float@19:"*> floating"]
-    3: text@7 continues words=[7-14 15-] comments=[]
+    3: text@7 continues words=[7-14 15-:"\"a long literal that is continued on the next line \"\"ab  cd\"\"ef\""] comments=[]
     4: text@7 continued words=[] comments=[]
     5: text@7 words=[] comments=[]
     6: text@7 words=[] comments=[line@6:"/ page"]

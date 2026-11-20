@@ -68,6 +68,11 @@
         "category": "SuperBOL"
       },
       {
+        "command": "superbol.convertSourceFormat",
+        "title": "Convert Source Format",
+        "category": "SuperBOL"
+      },
+      {
         "command": "superbol.saveUntitled",
         "title": "Save Untitled COBOL Document",
         "category": "SuperBOL"
@@ -629,6 +634,10 @@
         {
           "command": "superbol.toggleComments",
           "when": "editorLangId == 'cobol' && !editorReadonly && superbol.languageServerRunning"
+        },
+        {
+          "command": "superbol.convertSourceFormat",
+          "when": "editorLangId == 'cobol' && superbol.languageServerRunning"
         },
         {
           "command": "superbol.saveUntitled",

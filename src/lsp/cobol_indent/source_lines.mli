@@ -20,6 +20,11 @@ type word =
     start_offset: int;
     end_offset: int option;  (** [None] if the word continues on a later line
                                  (e.g, continued alphanumeric literal) *)
+    text: string option;   (** text of the word on a single line, for words
+                               whose raw text may not give it exactly:
+                               alphanumeric literals (that may not be closed
+                               before the end of the text area), and words
+                               that continue on a later line *)
   }
 
 (** Comment, with the byte offset in the line where it starts (on its marker,
@@ -44,6 +49,8 @@ type line =
                             this line, or the line has a continuation
                             indicator *)
     continues: bool;    (** the line is continued on a later line *)
+    source_format_directive: bool;  (** the line holds a compiler directive
+                                        that changes the source format *)
   }
 
 type t =

@@ -732,6 +732,10 @@ let commands =
       ~title:"Toggle Comments"
       ~category:"SuperBOL";
     Manifest.command ()
+      ~command:"superbol.convertSourceFormat"
+      ~title:"Convert Source Format"
+      ~category:"SuperBOL";
+    Manifest.command ()
       ~command:"superbol.saveUntitled"
       ~title:"Save Untitled COBOL Document"
       ~category:"SuperBOL";
@@ -786,6 +790,8 @@ let menus =
       menu ~command:"superbol.toggleComments"
         ~when_:"editorLangId == 'cobol' && !editorReadonly \
                 && superbol.languageServerRunning" ();
+      menu ~command:"superbol.convertSourceFormat"
+        ~when_:"editorLangId == 'cobol' && superbol.languageServerRunning" ();
       menu ~command:"superbol.saveUntitled"
         ~when_:untitled_cobol_document ()];
   ]
