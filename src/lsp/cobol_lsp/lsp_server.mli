@@ -88,6 +88,15 @@ val find_document
 val publish_cached_diagnostics
   : Lsp.Uri.t list -> t -> t * Lsp.Uri.t list
 
+(** {2 Documents read from disk} *)
+
+(** [open_from_disk ~uri registry] opens the document at [uri] as {!did_open}
+    does, with the contents of the file, as read from disk and decoded as the
+    client would send it.  For front-ends other than LSP clients, that have no
+    contents to send.  May raise [Sys_error]. *)
+val open_from_disk
+  : uri:Lsp.Uri.t -> t -> t
+
 (** {2 Queries} *)
 
 (** [is_open_file registry filename] tells whether the file named [filename]

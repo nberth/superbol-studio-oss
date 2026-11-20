@@ -308,9 +308,9 @@ let handle_call_tool registry params =
                           member "arguments" params) with
   | name, (`Assoc _ | `Null as arguments) ->
       let arguments = match arguments with `Assoc a -> a | _ -> [] in
-      let Lsp_tools.{ text; is_error } =
+      let Lsp_tools.{ text; is_error }, registry =
         Lsp_tools.call registry ~name ~arguments in
-      `Assoc ["text", `String text; "isError", `Bool is_error]
+      `Assoc ["text", `String text; "isError", `Bool is_error], registry
   | _ | exception Yojson.Safe.Util.Type_error _ ->
       Lsp_error.invalid_params "param = %s (object with \"name\" and \
                                 \"arguments\" keys expected)"
@@ -1027,7 +1027,8 @@ let on_request
         handle_publish_cached_diagnostics param registry
     | UnknownRequest { meth = "superbol/callTool";
                        params = Some param } ->
-        Ok (handle_call_tool registry param, state)
+        let result, registry = handle_call_tool registry param in
+        Ok (result, Running registry)
     | UnknownRequest { meth = "superbol/findProcedure";
                        params = Some param } ->
         Ok (handle_find_procedure registry param, state)

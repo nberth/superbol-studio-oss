@@ -28,8 +28,9 @@ type tool =
     input_schema: Yojson.Safe.t;        (** JSON schema of an object *)
   }
 
-(** Every tool. *)
-val definitions: tool list
+(** Every tool.  Unless [with_editor] holds, descriptions do not refer to an
+    editor, and tools that work on a single file require one. *)
+val definitions: with_editor:bool -> tool list
 
 type result =
   {
@@ -37,11 +38,16 @@ type result =
     is_error: bool;   (** whether [text] explains why there is no result *)
   }
 
-(** [call registry ~name ~arguments] runs the tool [name] with the given
-    arguments (as described by its input schema).  Tools that work on a given
-    file (outline and control flow) need that file to be open. *)
+(** [call ?open_files registry ~name ~arguments] runs the tool [name] with the
+    given arguments (as described by its input schema).  Tools that work on a
+    given file (outline and control flow) need that file to be open: unless
+    [open_files] holds (it does not by default), they fail otherwise; if it
+    holds, they open it from disk (see {!Lsp_server.open_from_disk}), and
+    close it once done.  Also gives the resulting server, that may have loaded
+    some projects. *)
 val call
-  : Lsp_server.t
+  : ?open_files: bool
+  -> Lsp_server.t
   -> name: string
   -> arguments: (string * Yojson.Safe.t) list
-  -> result
+  -> result * Lsp_server.t

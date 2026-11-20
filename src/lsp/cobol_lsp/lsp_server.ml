@@ -963,6 +963,21 @@ let did_close DidCloseTextDocumentParams.{ textDocument = { uri } } registry =
     indirect_diags = URIMap.remove indirect_uri registry.indirect_diags }
 
 
+(** {2 Documents read from disk} *)
+
+
+let open_from_disk ~uri registry =
+  let registry = retrieve_project_for ~uri registry in
+  let filename = Lsp_utils.path_of_uri uri in
+  let text =
+    match Lsp_project.SET.for_ ~uri registry.projects with
+    | project -> Lsp_project_cache.read_source_file project filename
+    | exception Not_found -> Lsp_platform.record.read_text_file filename
+  in
+  did_open { textDocument = TextDocumentItem.create ~uri ~languageId:"cobol"
+                 ~version:0 ~text } registry
+
+
 (** {2 Queries} *)
 
 

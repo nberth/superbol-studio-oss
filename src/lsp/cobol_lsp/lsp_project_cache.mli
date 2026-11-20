@@ -103,6 +103,16 @@ val cached_diagnostics
   -> string list
   -> (string * Superbol_project.Cached_diagnostics.t option) list
 
+(** {2 Documents that are not open} *)
+
+(** [read_source_file project filename] reads [filename] from disk, decoded as
+    the client would send it (see {!set_file_encoding}).  May raise
+    [Sys_error]. *)
+val read_source_file
+  : Lsp_project.t
+  -> string
+  -> string
+
 (** {2 Encoding of files} *)
 
 (** [set_file_encoding project encoding] records the encoding the client decodes

@@ -838,7 +838,7 @@ let languageModelTools =
       ~canBeReferencedInPrompt:true
       ~icon:{ icon_light = tool.icon; icon_dark = tool.icon }
       ~tags:["cobol"; "superbol"]
-  end Cobol_lsp.Tools.definitions
+  end (Cobol_lsp.Tools.definitions ~with_editor:true)
 
 let contributes =
   Manifest.contributes ()

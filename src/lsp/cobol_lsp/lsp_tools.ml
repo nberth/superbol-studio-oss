@@ -37,6 +37,17 @@ type result =
     is_error: bool;
   }
 
+(* --- Environment --- *)
+
+(** What tools work with.  [opened] are the documents the tool opened, to be
+    closed once it is done. *)
+type env =
+  {
+    mutable registry: Lsp_server.t;
+    open_files: bool;
+    mutable opened: Lsp.Uri.t list;
+  }
+
 (* --- Inputs --- *)
 
 type arguments = (string * Yojson.Safe.t) list
@@ -118,21 +129,40 @@ let plural n word = if n = 1 then word else word ^ "s"
 
 (** The open document at [uri], analyzed.  Documents are looked up by their
     canonical paths, as the client may spell their URIs differently. *)
-let checked_doc registry uri =
+let find_doc registry uri =
   let path = Superbol_cache.Witness.canonical_path @@ Lsp_utils.path_of_uri uri in
-  let doc =
-    URIMap.fold begin fun doc_uri doc found ->
-      match found with
-      | Some _ -> found
-      | None ->
-          if Superbol_cache.Witness.canonical_path
-              (Lsp_utils.path_of_uri doc_uri) = path
-          then Some doc else None
-    end registry.Lsp_server.docs None
-  in
-  match doc with
+  URIMap.fold begin fun doc_uri doc found ->
+    match found with
+    | Some _ -> found
+    | None ->
+        if Superbol_cache.Witness.canonical_path
+            (Lsp_utils.path_of_uri doc_uri) = path
+        then Some doc else None
+  end registry.Lsp_server.docs None
+
+(** [open_doc env uri] opens the document at [uri] from disk, if [env] allows
+    it. *)
+let open_doc env uri =
+  let path = Lsp_utils.path_of_uri uri in
+  if not env.open_files then
+    fail "%s is not open in the editor." (display_path env.registry uri)
+  else if not (Sys.file_exists path) || Sys.is_directory path then
+    fail "There is no file %s." path
+  else begin
+    env.registry <- Lsp_server.open_from_disk ~uri env.registry;
+    env.opened <- uri :: env.opened;
+    find_doc env.registry uri
+  end
+
+let checked_doc env uri =
+  let registry = env.registry in
+  match
+    match find_doc registry uri with
+    | None -> open_doc env uri
+    | found -> found
+  with
   | None ->
-      fail "%s is not open in the editor." (display_path registry uri)
+      fail "Unable to analyze %s." (display_path registry uri)
   | Some doc ->
       match Lsp_document.checked doc with
       | checked -> doc, checked
@@ -148,10 +178,11 @@ let rec count_symbols symbols =
   List.fold_left (fun n (s: DocumentSymbol.t) ->
       n + 1 + count_symbols (Option.value ~default:[] s.children)) 0 symbols
 
-let outline registry args =
-  let uri = required_file_uri registry args in
+let outline env args =
+  let uri = required_file_uri env.registry args in
   let max_depth = int_arg "maxDepth" args in
-  let doc, { Cobol_typeck.Outputs.ptree; _ } = checked_doc registry uri in
+  let doc, { Cobol_typeck.Outputs.ptree; _ } = checked_doc env uri in
+  let registry = env.registry in
   let path = display_path registry uri in
   match Lsp_document_symbol.from_ptree_at ~uri:(Lsp_document.uri doc) ptree with
   | [] ->
@@ -205,7 +236,7 @@ let describe_symbol_kind (s: SymbolInformation.t) =
 
 let default_symbol_limit = 50
 
-let find_symbol registry args =
+let find_symbol { registry; _ } args =
   let query = match string_arg "query" args with
     | None | Some "" -> fail "No query was given."
     | Some q -> q
@@ -280,7 +311,7 @@ let severity_name : DiagnosticSeverity.t option -> string = function
   | Some Error -> "error" | Some Warning -> "warning"
   | Some Information -> "info" | Some Hint | None -> "hint"
 
-let diagnostics registry args =
+let diagnostics { registry; _ } args =
   let all = all_diagnostics registry in
   let scope, diags =
     match file_uri registry args with
@@ -330,7 +361,7 @@ let diagnostics registry args =
 
 (* --- Project settings --- *)
 
-let project_settings registry args =
+let project_settings { registry; _ } args =
   let uri, config =
     match file_uri registry args,
           Lsp_project.SET.elements registry.Lsp_server.projects with
@@ -413,9 +444,10 @@ let render_cfg ~name ~path ~filename cfg =
   Fmt.flush ppf ();
   Buffer.contents buf
 
-let control_flow registry args =
-  let uri = required_file_uri registry args in
-  let doc, checked = checked_doc registry uri in
+let control_flow env args =
+  let uri = required_file_uri env.registry args in
+  let doc, checked = checked_doc env uri in
+  let registry = env.registry in
   let path = display_path registry uri in
   let names = Cobol_cfg.Builder.possible_cfgs_of_doc checked in
   let list_names names =
@@ -459,11 +491,24 @@ let schema ?(required = []) properties : Yojson.Safe.t =
     | [] -> []
     | r -> ["required", `List (List.map (fun s -> `String s) r)])
 
-let file_path_property ~default =
+let file_path_property ?default () =
   file_path_arg, "string",
-  "Absolute path of the COBOL source file. Defaults to " ^ default ^ "."
+  "Absolute path of the COBOL source file." ^
+  match default with
+  | None -> ""
+  | Some default -> " Defaults to " ^ default ^ "."
 
-let definitions = [
+let definitions ~with_editor =
+  (* Tools on a single file default to the one of the active editor, if
+     any. *)
+  let single_file_schema properties =
+    if with_editor
+    then schema (file_path_property () ~default:"the file shown in the \
+                                                  active editor"
+                 :: properties)
+    else schema ~required:[file_path_arg] (file_path_property () :: properties)
+  in
+  [
   {
     name = "superbol_cobol_outline";
     display_name = "COBOL Outline";
@@ -482,8 +527,7 @@ let definitions = [
                          reading the whole file, as COBOL programs are often \
                          very long.  Data item types (PICTURE, USAGE) and \
                          statements are not included.";
-    input_schema = schema [
-        file_path_property ~default:"the file shown in the active editor";
+    input_schema = single_file_schema [
         "maxDepth", "integer",
         "Maximum nesting depth of the symbols shown (programs are at depth \
          1, divisions at depth 2, sections at depth 3); deeper symbols are \
@@ -535,7 +579,7 @@ let definitions = [
                          COBOL file of the workspace that SuperBOL has \
                          analyzed.";
     input_schema = schema [
-        file_path_property ~default:"every analyzed file of the workspace";
+        file_path_property () ~default:"every analyzed file of the workspace";
       ];
   };
   {
@@ -554,8 +598,11 @@ let definitions = [
                          that it follows the expected format and dialect, or \
                          to find where the copybooks of a program are.";
     input_schema = schema [
-        file_path_property ~default:"the file shown in the active editor, or \
-                                    else the first workspace folder";
+        file_path_property () ~default:
+          (if with_editor
+           then "the file shown in the active editor, or else the first \
+                 workspace folder"
+           else "the first project of the workspace");
       ];
   };
   {
@@ -576,8 +623,7 @@ let definitions = [
                          several programs, or to get the graph of one \
                          section, the tool lists the graph names that `name` \
                          accepts.";
-    input_schema = schema [
-        file_path_property ~default:"the file shown in the active editor";
+    input_schema = single_file_schema [
         "name", "string",
         "Name of the graph: a program name, or a section name followed by \
          its program name in parentheses, e.g. `MAIN-SECTION (PAYROLL)`.  \
@@ -594,12 +640,12 @@ let implementations = [
   "superbol_cobol_control_flow", control_flow;
 ]
 
-let call registry ~name ~arguments =
+let run env ~name ~arguments =
   match List.assoc_opt name implementations with
   | None ->
       { text = Fmt.str "Unknown tool: %s" name; is_error = true }
   | Some f ->
-      match f registry arguments with
+      match f env arguments with
       | text ->
           { text; is_error = false }
       | exception Tool_error text ->
@@ -609,3 +655,13 @@ let call registry ~name ~arguments =
       | exception e ->
           Lsp_io.log_error "Tool %s failed: %a" name Fmt.exn e;
           { text = Fmt.str "Internal error of tool %s." name; is_error = true }
+
+let call ?(open_files = false) registry ~name ~arguments =
+  let env = { registry; open_files; opened = [] } in
+  let result = run env ~name ~arguments in
+  let registry =
+    List.fold_left begin fun registry uri ->
+      Lsp_server.did_close { textDocument = { uri } } registry
+    end env.registry env.opened
+  in
+  result, registry
