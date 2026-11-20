@@ -210,15 +210,16 @@ let parse ~config ~filename ~contents =
     | _ :: tokens -> iter_ignored_sql loc begin_of_ignore_loc tokens
     | [] -> failwith "missing END-EXEC."
   and tokenize_file ~filename ~contents tokens =
-    let { Cobol_indent.Scanner.toks = new_tokens; _ } =
-      Cobol_indent.Scanner.tokenize ~filename ~config:config.scanner_config
-        ~contents
+    let new_tokens =
+      Cobol_indent.Line_scanner.positioned_tokens @@
+      Cobol_indent.Source_lines.scan ~options:config.preproc_options ~filename
+        contents
     in
 
     let tokens =
       List.rev_append
         (List.rev_map
-           (fun (tok, e) -> (tok, Misc.loc_of_edit ~filename e))
+           (fun (tok, line, char) -> (tok, { filename; line; char }))
            new_tokens )
         tokens
     in

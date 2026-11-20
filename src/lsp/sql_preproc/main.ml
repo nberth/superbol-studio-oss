@@ -10,33 +10,27 @@
 
 open EzCompat
 open Cobol_common.Platform.TYPES
-open Cobol_indent.Types
 open Types
 
 (* Known limitations:
 
    * We do not correctly handle continuation lines in the middle of
      EXEC SQL commands ;
-
-   * tabulations in margin in fixed format breaks the computation of
-     indentation ;
 *)
 
-let preproc ~platform ~filename ?(sql_in_copybooks = false) ?(copy_path = [])
-    ?(copy_exts = []) ?contents ~source_format
+let preproc ~options ~filename ?(sql_in_copybooks = false) ?(copy_path = [])
+    ?(copy_exts = []) ?contents
     ~cobol_unit () =
+  let platform = options.Cobol_preproc.Options.platform in
   let contents =
     match contents with
     | None -> platform.read_text_file filename
     | Some c -> c
   in
-  let scanner_config = Cobol_indent.Config.load ~platform
-      ~source_format ~filename () in
+  let verbosity = 1 in
 
-  if scanner_config.verbosity > 0 then
+  if verbosity > 0 then
     Printf.eprintf "Parsing file %S...\n%!" filename;
-
-  let scanner_config = { scanner_config with scan_for_indent = false } in
 
   let copy_exts =
     match copy_exts with
@@ -64,11 +58,11 @@ let preproc ~platform ~filename ?(sql_in_copybooks = false) ?(copy_path = [])
 
   let config =
     { platform;
-      scanner_config;
+      preproc_options = options;
       sql_in_copybooks;
       copy_path;
       copy_exts;
-      verbosity = scanner_config.verbosity
+      verbosity
     }
   in
 

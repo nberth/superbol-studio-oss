@@ -48,7 +48,9 @@ let line_revtokens (line: Source_lines.line) =
     | { Source_lines.end_offset = Some e; _ } :: words ->
         split_words first e words
     | { start_offset; end_offset = None } :: _ ->
-        (CHARS "", start_offset, String.length line.text - start_offset) ::
+        let len = String.length line.text - start_offset in
+        (CHARS (String.uppercase_ascii (String.sub line.text start_offset len)),
+         start_offset, len) ::
         lex_slice line.text ~first ~last
   in
   match line.words with
@@ -112,3 +114,10 @@ let tokenize ~config (src: Source_lines.t) =
         end
   end src.lines;
   { toks = List.rev !revtoks; edits = List.rev !revedits }
+
+let positioned_tokens (src: Source_lines.t) =
+  Lexer.init ();
+  List.concat_map begin fun (line: Source_lines.line) ->
+    List.rev_map (fun (token, offset, _) -> token, line.lnum, offset)
+      (line_revtokens line)
+  end (Array.to_list src.lines)

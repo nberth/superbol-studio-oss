@@ -9,13 +9,12 @@
 (**************************************************************************)
 
 val preproc :
-  platform:Cobol_common.Types.platform ->
+  options:Cobol_preproc.Options.preproc_options ->
   filename:string ->
   ?sql_in_copybooks:bool ->
   ?copy_path:string list ->
   ?copy_exts:string list ->
   ?contents:string ->
-  source_format:Cobol_indent.Types.source_format ->
   cobol_unit:Cobol_unit.Types.cobol_unit ->
   unit ->
   string

@@ -19,45 +19,7 @@ open Types
 
 let verbose = false
 
-let fixed_format = {
-  name = "fixed" ;
-  free = false ;    (* whether there is an indicator or inline
-                       comments *)
-  skip_before = 6 ; (* skip 6 columns, 1..6 *)
-  max_text_length = 65; (* skip columns 8..72 *)
-}
-
-let free_format = {
-  name = "free" ;
-  free = true ;
-  skip_before = 0 ;
-  max_text_length = 65536;
-}
-
-let variable_format = {
-  fixed_format with
-  name = "variable";
-  max_text_length = fixed_format.max_text_length + (250-72) ;
-}
-
-let xcard_format = {
-  fixed_format with
-  name = "xcard";
-  max_text_length = fixed_format.max_text_length + (255-72) ;
-}
-
-let cobolx_format = {
-  fixed_format with
-  name = "cobolx";
-  skip_before = 0 ;
-  max_text_length = 255 ;
-}
-
 let default = {
-  scan_for_indent = true;
-  verbosity = 1;
-
-  source_format = fixed_format ;
   arg_offset = 3 ;
   inner_offset = 3 ;
   data_item_offset = None ;
@@ -69,7 +31,6 @@ let default = {
 let to_string config =
   let b = Buffer.create 1000 in
   Printf.bprintf b "{\n";
-  Printf.bprintf b "  source_format = %s ;\n" config.source_format.name ;
   Printf.bprintf b "  arg_offset = %d ;\n" config.arg_offset ;
   Printf.bprintf b "  inner_offset = %d ;\n" config.inner_offset ;
   Printf.bprintf b "  data_item_offset = %s ;\n" (match config.data_item_offset with
@@ -94,7 +55,7 @@ let apply_unparsed config (unparsed: unparsed_config) =
     | _ -> config
   end config unparsed
 
-let load ~platform ~source_format ?(unparsed = []) ~filename () =
+let load ~platform ?(unparsed = []) ~filename () =
   if verbose then
     Printf.eprintf "Config.load for %S\n%!" filename;
   let filename =
@@ -104,7 +65,7 @@ let load ~platform ~source_format ?(unparsed = []) ~filename () =
       filename
   in
   let dirname = Filename.dirname filename in
-  let default = apply_unparsed { default with source_format } unparsed in
+  let default = apply_unparsed default unparsed in
 
   let rec iter dir =
     let dirdir = Filename.dirname dir in
@@ -124,45 +85,39 @@ let load ~platform ~source_format ?(unparsed = []) ~filename () =
                 let option, value = EzString.cut_at line '=' in
                 let option = String.trim option in
                 let value = String.trim value in
+                let int f =
+                  match int_of_string_opt value with
+                  | Some n -> config := f n
+                  | None ->
+                      Printf.eprintf "Warning in %S: invalid value %S for \
+                                      option %S\n%!" file value option
+                in
                 match String.lowercase_ascii option,
                       String.lowercase_ascii value
                 with
-                | "format", ( "fixed" | "cobol85" ) ->
-                  config := { !config with source_format = fixed_format }
-                | "format", "free" ->
-                  config := { !config with source_format = free_format }
-                | "format", "variable" ->
-                  config := { !config with source_format = variable_format }
-                | "format", "xcard" ->
-                  config := { !config with source_format = xcard_format }
-                | "format", "cobolx" ->
-                  config := { !config with source_format = cobolx_format }
-                (* xopen, crt and terminal are not yet supported.
+                | "format", _ ->
+                  (* the source format now comes from the project
+                     configuration *)
+                  ()
 
-                   https://get-superbol.com/gnucobol/manual/chapter2.html?source-format
-                *)
+                | "whole-file-indent", _ ->
+                  int (fun n -> { !config with whole_file_indent = n })
 
-
-                | "whole-file-indent", n ->
-                  config := { !config with whole_file_indent = int_of_string n }
-
-
-                | "arg-offset", n ->
-                  config := { !config with arg_offset = int_of_string n }
+                | "arg-offset", _ ->
+                  int (fun n -> { !config with arg_offset = n })
 
                 | "select-in-area-a", ( "true" | "yes" | "y" ) ->
                   config := { !config with select_in_area_a = true }
 
-                | ( "data-item-offset" ), n ->
-                  config := { !config with
-                              data_item_offset = Some ( int_of_string n ) }
+                | "select-in-area-a", _ ->
+                  config := { !config with select_in_area_a = false }
 
-                | ( "inner-offset" ), n ->
-                  config := { !config with inner_offset = int_of_string n }
+                | ( "data-item-offset" ), _ ->
+                  int (fun n -> { !config with data_item_offset = Some n })
 
-                | "format", format ->
-                  Printf.eprintf "Warning in %S: unknown format %S\n%!"
-                    file format
+                | ( "inner-offset" ), _ ->
+                  int (fun n -> { !config with inner_offset = n })
+
                 | _ ->
                   Printf.eprintf "Warning in %S: unknown option %S\n%!"
                     file option
@@ -193,11 +148,6 @@ let generate ?(config=default) ?(only_comment = true) filename =
     )
 
     [
-      "format",
-      "either 'fixed', 'free', 'variable', 'xcard', 'cobolx'",
-      config.source_format.name,
-      default.source_format.name ;
-
       "whole-file-indent",
       "apply the given indent to the whole file",
       string_of_int config.whole_file_indent,
@@ -227,24 +177,3 @@ let generate ?(config=default) ?(only_comment = true) filename =
 
   close_out oc;
   Printf.eprintf "File %S generated\n%!" filename
-
-
-
-open Cobol_config.Types
-
-let source_format format =
-  let source_format = match format with
-    | Auto -> SFFixed (* TODO : auto-detect *)
-    | SF sf -> sf
-  in
-  match source_format with
-  | SFFixed -> fixed_format
-  | SFCOBOL85 -> fixed_format
-  | SFFree -> free_format
-  | SFVariable -> variable_format
-  | SFxCard -> xcard_format
-  | SFCOBOLX -> cobolx_format
-  | SFXOpen
-  | SFCRT
-  | SFTrm (* terminal *)
-    -> failwith "format not supported"

@@ -59,7 +59,7 @@ type gen_context = {
 
 type config = {
   platform: Cobol_common.Types.platform;
-  scanner_config: Cobol_indent.Types.config ;
+  preproc_options: Cobol_preproc.Options.preproc_options ;
   sql_in_copybooks : bool;
   copy_path : ( string * string StringMap.t) list Lazy.t ;
   copy_exts : string list ;

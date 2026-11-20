@@ -45,8 +45,7 @@ let indent ~options ~config ~filename ?(verbose=false) ?output ?contents ?range
   in
 
   let config =
-    Config.load ~platform ~source_format:Config.fixed_format ~unparsed:config
-      ~filename ()
+    Config.load ~platform ~unparsed:config ~filename ()
   in
   if Engine.verbose then
     Printf.eprintf "Config: %s\n%!" (Config.to_string config);

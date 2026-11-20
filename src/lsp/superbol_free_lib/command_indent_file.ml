@@ -108,9 +108,7 @@ let action ~numeric ~intext ~inplace ?suffix ?range
 
 let generate_config ~platform =
   let config =
-    Cobol_indent.Config.load ~platform
-      ~source_format:(Cobol_indent.Config.source_format Cobol_config.Types.(SF SFFixed))
-      ~filename:"file.cob" ()
+    Cobol_indent.Config.load ~platform ~filename:"file.cob" ()
   in
   Cobol_indent.Config.generate ~config ".superbol-indent"
 

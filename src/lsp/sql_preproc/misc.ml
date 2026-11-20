@@ -12,12 +12,6 @@ open EzCompat
 open Cobol_indent.Types
 open Types
 
-let loc_of_edit ~filename e =
-  { filename;
-    line = e.tok_edit.edit.lnum;
-    char = e.tok_indent + e.tok_edit.edit.offset_orig
-  }
-
 let error ?loc fmt =
   Printf.kprintf
     (fun s ->

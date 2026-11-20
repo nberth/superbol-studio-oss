@@ -63,21 +63,18 @@ let typeck_file ~setup
                    filename)
 
 let parse ~sql_in_copybooks ~test_extension ~setup common files =
-  let platform = common.platform in
   List.iter
     (fun filename ->
        match typeck_file ~setup common filename with
        | Error msg ->
            Pretty.error "@[Skipping:@ %s@]@." msg
-       | Ok (Cobol_preproc.Options.{ source_format;
-                                     copybook_lookup_config = { lookup_path;
+       | Ok (Cobol_preproc.Options.{ copybook_lookup_config = { lookup_path;
                                                                 lookup_exts };
-                                     _ },
+                                     _ } as options,
              contents, cobol_unit) ->
            let contents =
              Sql_preproc.Main.preproc ()
-               ~platform ~sql_in_copybooks ~filename ~contents
-               ~source_format:(Cobol_indent.Config.source_format source_format)
+               ~options ~sql_in_copybooks ~filename ~contents
                ~copy_path:lookup_path
                ~copy_exts:(List.map (fun ext -> "." ^ ext) lookup_exts)
                ~cobol_unit

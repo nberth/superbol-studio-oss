@@ -14,8 +14,6 @@ val error : ?loc:Types.loc -> ('a, unit, string, 'b) format4 -> 'a
 
 val warning : ?loc:Types.loc -> ('a, unit, string, unit) format4 -> 'a
 
-val loc_of_edit : filename:string -> Cobol_indent.Types.token_descr -> Types.loc
-
 val string_of_token : Cobol_indent.Types.token -> string
 
 val add_dot : with_dot:bool -> Buffer.t -> unit

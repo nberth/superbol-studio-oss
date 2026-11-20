@@ -35,26 +35,7 @@ type range = {
   end_line   : int ;
 }
 
-type source_format = {
-  name : string ;
-  free : bool  ;      (* has column identifier *)
-  skip_before : int ;      (* fixed = 6 *)
-  max_text_length : int ;  (* fixed = 8..72 = 65 chars *)
-}
-
 type config = {
-
-  (* the scanner currently loses some tokens to improve indentation,
-     for example the name after PROGRAM-ID if it is on the next
-     line. Use this flag to prevent this behavior.
-
-     Also, Scanner.skipped_revlines is only filled when this option is
-     set to false.
-*)
-  scan_for_indent : bool ;
-  verbosity : int ; (* global verbosity *)
-
-  source_format : source_format ;
   arg_offset : int ;
   inner_offset : int ;
   data_item_offset : int option ;
