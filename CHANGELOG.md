@@ -3,6 +3,7 @@
 ## [_] Next release
 
 ### Added
+- Support for floating debugging lines (`>>D`) [#???](https://github.com/OCamlPro/superbol-studio-oss/pull/???)
 - Proposal of a file name based on the `PROGRAM-ID` when saving an untitled COBOL document [#747](https://github.com/OCamlPro/superbol-studio-oss/pull/747)
 - Support for comment toggling, sensitive to source format [#746](https://github.com/OCamlPro/superbol-studio-oss/pull/746)
 - Reporting of REDEFINES clauses that do not immediately follow the data-name, according to the support of the dialect for this feature [#742](https://github.com/OCamlPro/superbol-studio-oss/pull/742)

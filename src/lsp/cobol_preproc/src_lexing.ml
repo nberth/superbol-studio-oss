@@ -40,6 +40,7 @@ type 'k state =
     continued: continued;
     pseudotext: (srcloc * text) option;
     comments: comments;
+    debug_lines: debug_lines;      (** debugging lines that are not compiled *)
     ignored: lexloc list;               (** lexical locations of ignored text *)
     cdir_seen: bool;
     utf8_cpos_shift: int;               (** extra bytes contributed by multi-bytes
@@ -81,6 +82,7 @@ let init_state ?(options = Src_options.default) source_format : _ state =
     continued = CNone;
     pseudotext = None;
     comments = [];
+    debug_lines = [];
     ignored = [];
     cdir_seen = false;
     utf8_cpos_shift = 0;
@@ -98,6 +100,7 @@ let init_state ?(options = Src_options.default) source_format : _ state =
 
 let diagnostics { diags; _ } = diags
 let rev_comments { comments; _ } = comments
+let rev_debug_lines { debug_lines; _ } = debug_lines
 let rev_ignored { ignored; _ } = ignored
 let rev_newline_cnums { newline_cnums; _ } = newline_cnums
 let source_format { config = { source_format; _ }; _ } = source_format
@@ -632,6 +635,33 @@ let comment ?(marker = "") ?(floating = false) state lexbuf =
     }
   in
   new_line { state with comments = comment :: state.comments } lexbuf
+
+let debug_line ~marker ~kind state lexbuf =
+  let s, start_pos, end_pos = lexeme_info lexbuf in
+  let marker_pos =                     (* include location of the marker *)
+    Lexing.{ start_pos with
+             pos_cnum = start_pos.pos_cnum - String.length marker } in
+  let contents, end_pos =                    (* remove potential newline *)
+    let len = String.length s in
+    let rec text_end i =
+      if i > 0 && (s.[i - 1] = '\n' || s.[i - 1] = '\r')
+      then text_end (pred i) else i
+    in
+    let n = text_end len in
+    String.sub s 0 n, Lexing.{ end_pos with pos_cnum = end_pos.pos_cnum - (len - n) }
+  in
+  let debug_line =
+    {
+      debug_loc = marker_pos, end_pos;
+      debug_kind = kind;
+      debug_contents = marker ^ contents;
+    }
+  in
+  let state =
+    ignore_lexloc ~start_pos:marker_pos ~end_pos
+      { state with debug_lines = debug_line :: state.debug_lines }
+  in
+  new_line state lexbuf
 
 let prefix_buff = Buffer.create 42           (* Warning: shared mutable state *)
 let string_prefix_with_utf8_codepoints s up_to_index =

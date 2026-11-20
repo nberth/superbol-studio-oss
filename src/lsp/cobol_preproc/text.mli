@@ -23,6 +23,8 @@ include module type of Text_types
    and type pseudotext = Text_types.pseudotext
    and type comment = Text_types.comment
    and type comments = Text_types.comments
+   and type debug_line = Text_types.debug_line
+   and type debug_lines = Text_types.debug_lines
 
 (** [*_eqp] functions below perform (ASCII) case-insensitive comparisons. *)
 

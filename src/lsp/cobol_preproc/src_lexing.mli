@@ -19,6 +19,7 @@ val init_state
   -> 'k state
 val diagnostics: _ state -> Src_diagnostics.t
 val rev_comments: _ state -> Text.comments
+val rev_debug_lines: _ state -> Text.debug_lines
 val rev_ignored: _ state -> Cobol_common.Srcloc.lexloc list
 val rev_newline_cnums: _ state -> int list
 val source_format: 'k state -> 'k Src_format.source_format
@@ -39,6 +40,16 @@ val tab
   -> k:('s -> Lexing.lexbuf -> 'b)
   -> ('a state as 's)
   -> Lexing.lexbuf -> 'b
+
+(** [debug_line ~marker ~kind state lexbuf] records the debugging line whose
+    text (after [marker]) up to the end of the line was just read, as a
+    debugging line that is not compiled; the line is also ignored. *)
+val debug_line
+  : marker:string
+  -> kind:[`Indicator | `Floating]
+  -> 'a state
+  -> Lexing.lexbuf
+  -> 'a state * Text.text
 
 val comment
   : ?marker:string

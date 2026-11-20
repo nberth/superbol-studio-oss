@@ -30,6 +30,7 @@ let platform (Plx (_, _, platform)) = platform
 let source_format (Plx (pl, _, _)) = Src_format.SF (Src_lexing.source_format pl)
 let rev_comments (Plx (pl, _, _)) = Src_lexing.rev_comments pl
 let rev_ignored (Plx (pl, _, _)) = Src_lexing.rev_ignored pl
+let rev_debug_lines (Plx (pl, _, _)) = Src_lexing.rev_debug_lines pl
 let rev_newline_cnums (Plx (pl, _, _)) = Src_lexing.rev_newline_cnums pl
 
 let chunks_reader lexer =

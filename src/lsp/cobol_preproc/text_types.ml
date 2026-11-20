@@ -62,3 +62,13 @@ type comment =
     comment_contents: string;
   }
 and comments = comment list
+
+(* Debugging line that is not compiled (i.e, when debugging lines are not
+   activated) *)
+type debug_line =
+  {
+    debug_loc: lexloc;
+    debug_kind: [`Indicator | `Floating];  (* `D' indicator, or `>>D' marker *)
+    debug_contents: string;                (* including the indicator or marker *)
+  }
+and debug_lines = debug_line list
