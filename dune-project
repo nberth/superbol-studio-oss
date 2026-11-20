@@ -531,26 +531,6 @@
  )
 
 (package
- (name cobol_indent_old)
- (synopsis "SuperBOL Studio OSS Project")
- (description "SuperBOL Studio OSS is a new platform for COBOL")
- 
-  (sites
-    
-  )
-
- (depends
-   (ocaml (>= 4.14.2))
-   (fmt ( >= 0.9 ))
-   (cobol_preproc (= :version))
-   (cobol_dialect (= :version))
-   (cobol_common (= :version))
-   odoc
-   (dune (and ( >= 3.17.0 )( < 3.19.0 )))
-  )
- )
-
-(package
  (name cobol_preproc)
  (synopsis "SuperBOL Studio OSS Project")
  (description "SuperBOL Studio OSS is a new platform for COBOL")

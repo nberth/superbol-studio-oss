@@ -5,7 +5,7 @@ version:0.9.0
 
 # hash of toml configuration files
 # used for generation of all files
-9a1e1a244b9943ffedfad05ac4358bb7:.
+e9c7f6daba0ab6808c4d2e88c9cb9ba1:.
 # end context for .
 
 # begin context for .github/workflows/workflow.yml
@@ -20,7 +20,7 @@ c45749b93d3b3ea32e8b56a62ad2bf92:.github/workflows/workflow.yml
 
 # begin context for Makefile
 # file Makefile
-52c675b9e092e6c78c00d6105cab2ccd:Makefile
+0163eb78fda70275517a34d45e3e2b8a:Makefile
 # end context for Makefile
 
 # begin context for docs/README.txt
@@ -55,7 +55,7 @@ c8281f46ba9a11d0b61bc8ef67eaa357:docs/style.css
 
 # begin context for dune-project
 # file dune-project
-285a74e4ac125659e7945715e00643df:dune-project
+9ac9d98082b8e27f8cc5c2ac5e1927e5:dune-project
 # end context for dune-project
 
 # begin context for opam/autofonce.opam
@@ -142,11 +142,6 @@ f2375b241588c4abe3410c7cf049bb4e:opam/cobol_dialect.opam
 # file opam/cobol_indent.opam
 d6a2045782e3c1fb664f89953afa3081:opam/cobol_indent.opam
 # end context for opam/cobol_indent.opam
-
-# begin context for opam/cobol_indent_old.opam
-# file opam/cobol_indent_old.opam
-a3adf2804f6343af73c793b09bf63a61:opam/cobol_indent_old.opam
-# end context for opam/cobol_indent_old.opam
 
 # begin context for opam/cobol_interp.opam
 # file opam/cobol_interp.opam
@@ -672,21 +667,6 @@ d3b7ae62f945ba98a321709cb807d516:src/lsp/cobol_indent/dune
 # file src/lsp/cobol_indent/version.mlt
 a18438bf6e347bb93779045b0a7006d1:src/lsp/cobol_indent/version.mlt
 # end context for src/lsp/cobol_indent/version.mlt
-
-# begin context for src/lsp/cobol_indent_old/dune
-# file src/lsp/cobol_indent_old/dune
-f885eab1d69dbfea1d445db893b0c217:src/lsp/cobol_indent_old/dune
-# end context for src/lsp/cobol_indent_old/dune
-
-# begin context for src/lsp/cobol_indent_old/package.toml
-# file src/lsp/cobol_indent_old/package.toml
-8aa6fb37e13063281858e9b61d570b95:src/lsp/cobol_indent_old/package.toml
-# end context for src/lsp/cobol_indent_old/package.toml
-
-# begin context for src/lsp/cobol_indent_old/version.mlt
-# file src/lsp/cobol_indent_old/version.mlt
-a18438bf6e347bb93779045b0a7006d1:src/lsp/cobol_indent_old/version.mlt
-# end context for src/lsp/cobol_indent_old/version.mlt
 
 # begin context for src/lsp/cobol_lsp/dune
 # file src/lsp/cobol_lsp/dune
