@@ -128,7 +128,7 @@ let render target { seq; kind; content } =
   | `Free, Comment _ ->
       "*>" ^ content
   | `Free, Debug ->
-      ">>D" ^ (if content <> "" && content.[0] = ' ' then "" else " ") ^ content
+      ">>D" ^ (if content = "" || content.[0] = ' ' then "" else " ") ^ content
 
 let blank_seq = ""
 
@@ -256,6 +256,9 @@ let close_literal ~warn ~lnum text =
    them into several lines if needed. *)
 let layout ~target ?(kind = Code) ~seq ~lnum ~warn ~indent items =
   let base_kind = kind in
+  (* a continuation line cannot be a debugging line as well *)
+  let split_literals =
+    if base_kind = Debug then `Concatenation else target.split_literals in
   let total =
     List.fold_left (fun acc { gap; text } -> acc + gap + String.length text)
       0 items
@@ -332,8 +335,6 @@ let layout ~target ?(kind = Code) ~seq ~lnum ~warn ~indent items =
       Buffer.add_string b (spaces shift);
       Buffer.add_string b (String.sub text 0 cut);
       new_line ~at:area_b;
-      if base_kind = Debug then
-        warn lnum "literal continued on a line that is not a debugging line";
       kind := Continuation;
       place_literal (String.make 1 q ^ String.sub text cut (len - cut))
         ~qpos:0 ~q
@@ -387,7 +388,7 @@ let layout ~target ?(kind = Code) ~seq ~lnum ~warn ~indent items =
     if fits (col + gap + len) then begin
       Buffer.add_string b (spaces gap);
       Buffer.add_string b text
-    end else begin match literal_quote text, target.split_literals with
+    end else begin match literal_quote text, split_literals with
       | Some (0, q), `Concatenation ->
           (* move the literal to the next line if it fits there; split it
              otherwise *)
@@ -453,20 +454,46 @@ let code_lines ~target src ~seq ~warn (line: SL.line) =
             if i = 0 then text else spaces gap ^ text) items
       in
       [{ seq; kind = Code; content }]
-  | { text; _ } :: ({ gap; _ } :: _ as items)
-    when String.uppercase_ascii text = ">>D" ->
-      (* debugging line in free-like formats *)
-      layout ~target ~kind:Debug ~seq ~lnum:line.lnum ~warn
-        ~indent:(max 0 (first_col + String.length text + gap - text_col))
-        items
   | _ ->
       layout ~target ~seq ~lnum:line.lnum ~warn
         ~indent:(max 0 (first_col - text_col))
         items
 
-(* Debugging line, recognized from its raw text. *)
-let debug_line src ~seq (line: SL.line) =
+(* Items of the text [s] of a debugging line, that is not lexed: words are
+   separated by spaces, and alphanumeric literals are kept whole. *)
+let raw_items s =
+  let len = String.length s in
+  let rec skip_blanks i =
+    if i < len && s.[i] = ' ' then skip_blanks (succ i) else i in
+  let rec word_end i =
+    if i >= len || s.[i] = ' ' then i
+    else match s.[i] with
+      | '"' | '\'' as q -> word_end (literal_end q (succ i))
+      | _ -> word_end (succ i)
+  and literal_end q i =
+    if i >= len then len
+    else if s.[i] <> q then literal_end q (succ i)
+    else if i + 1 < len && s.[i + 1] = q then literal_end q (i + 2)
+    else i + 1
+  in
+  let rec aux acc prev_end i =
+    let i = skip_blanks i in
+    if i >= len then List.rev acc
+    else
+      let e = word_end i in
+      aux ({ gap = i - prev_end; text = String.sub s i (e - i) } :: acc) e e
+  in
+  aux [] 0 0
+
+(* Lines for the debugging line [d] that starts on [line]. *)
+let debug_lines ~target src ~seq ~warn (line: SL.line) (d: SL.debug) =
   let text_col = SL.text_column line.format in
+  let marker_len =
+    match d.debug_kind, line.format with
+    | `Floating, _ -> 3                                             (* >>D *)
+    | `Indicator, SF ((XOpenIndic | TrmIndic), _) -> 2       (* "D " or \D *)
+    | `Indicator, SF _ -> 1                                           (* D *)
+  in
   let last =                        (* end of the text area of the source line *)
     match SL.cut_column line.format with
     | None -> String.length line.text
@@ -475,28 +502,18 @@ let debug_line src ~seq (line: SL.line) =
         | Char i | Tab { offset = i; _ } -> i
         | Short -> String.length line.text
   in
-  let content ~from = rstrip (expand src line ~first:from ~last) in
-  if SL.has_indicator line.format then
-    match SL.locate src line (text_col - 1) with
-    | Char i when line.text.[i] = 'D' || line.text.[i] = 'd' ->
-        Some { seq; kind = Debug; content = content ~from:(i + 1) }
-    | _ -> None
-  else
-    let len = String.length line.text in
-    let rec first_non_blank i =
-      if i < len && (line.text.[i] = ' ' || line.text.[i] = '\t')
-      then first_non_blank (succ i) else i
-    in
-    let i = first_non_blank 0 in
-    if i + 3 <= len &&
-       String.uppercase_ascii (String.sub line.text i 3) = ">>D" &&
-       (i + 3 = len || line.text.[i + 3] = ' ')
-    then
-      let from = min len (i + 3) in
-      let from = first_non_blank from in
-      let rel = max 0 (SL.column src line from - text_col) in
-      Some { seq; kind = Debug; content = spaces rel ^ content ~from }
-    else None
+  let rec first_non_blank i =
+    if i < last && (line.text.[i] = ' ' || line.text.[i] = '\t')
+    then first_non_blank (succ i) else i
+  in
+  let first =
+    first_non_blank (min last (d.debug_offset + marker_len)) in
+  match raw_items (rstrip (expand src line ~first ~last)) with
+  | [] ->
+      [{ seq; kind = Debug; content = "" }]
+  | items ->
+      layout ~target ~kind:Debug ~seq ~lnum:line.lnum ~warn items
+        ~indent:(max 0 (SL.column src line first - text_col))
 
 let is_blank s =
   String.for_all (function ' ' | '\t' -> true | _ -> false) s
@@ -532,17 +549,9 @@ let convert_line ~target src ~keep_sequence_numbers ~warn (line: SL.line) =
       List.concat_map (comment_lines ~target src ~seq line) comments
     else if line.continued || is_blank line.text then
       []                    (* continuation of a previous line, or blank line *)
-    else match debug_line src ~seq line with
-      | Some l ->
-          let width = match target.indicator with
-            | `Free -> Option.map (fun w -> w - 4) target.width
-            | `Fixed _ -> target.width
-          in
-          if match width with
-            | Some w -> String.length l.content > w
-            | None -> false
-          then warn line.lnum "debugging line extends beyond the text area";
-          [l]
+    else match line.debug with
+      | Some d ->
+          debug_lines ~target src ~seq ~warn line d
       | None when floating <> [] -> []
       | None ->
           (* e.g, text in the sequence area only *)

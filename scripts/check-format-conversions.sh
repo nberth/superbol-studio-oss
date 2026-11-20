@@ -9,6 +9,9 @@
 # - `cobc -E` gives the same output for both files, up to whitespace, line
 #   markers, and concatenations of alphanumeric literals (`"a" & "b"`).
 #
+# Debugging lines are compiled (`-fdebugging-line`), so that their contents
+# are checked as well.
+#
 # Further, every program `*.cob` of `test/format_conversions` is compiled and
 # run before and after conversion, and must give the same output.
 #
@@ -39,12 +42,15 @@ normalize () {
                 s/^ //; s/ \$//"
 }
 
+# Debugging lines are compiled, so their contents are checked as well
+COBC_FLAGS=(-fdebugging-line)
+
 # cobc_ok FORMAT FILE INCDIR [OPTIONS...]
 cobc_ok () {
     local fmt="$1" file="$2" incdir="$3"; shift 3
     # in a subshell, so crashes of cobc on some inputs are not reported
-    ( "$COBC" -fformat="$fmt" -I "$incdir" "$@" "$file"; exit $? ) \
-        >/dev/null 2>&1
+    ( "$COBC" "${COBC_FLAGS[@]}" -fformat="$fmt" -I "$incdir" "$@" "$file"
+      exit $? ) >/dev/null 2>&1
 }
 
 # convert FORMAT TARGET FILE OUTPUT
@@ -80,7 +86,8 @@ while IFS= read -r -d '' file; do
     done
     [ -n "$fmt" ] || continue
     checked=$((checked + 1))
-    "$COBC" -E -fformat="$fmt" -I "$incdir" "$src" 2>/dev/null |
+    "$COBC" "${COBC_FLAGS[@]}" -E -fformat="$fmt" -I "$incdir" "$src" \
+            2>/dev/null |
         normalize > "$dir/ref"
     for target in $TARGETS; do
         tfmt="$(echo "${target%%:*}" | lower)"
@@ -89,7 +96,8 @@ while IFS= read -r -d '' file; do
             fail "$file: conversion into $target"
         elif ! cobc_ok "$tfmt" "$out" "$incdir" -fsyntax-only; then
             fail "$file: conversion into $target does not compile"
-        elif ! "$COBC" -E -fformat="$tfmt" -I "$incdir" "$out" 2>/dev/null |
+        elif ! "$COBC" "${COBC_FLAGS[@]}" -E -fformat="$tfmt" -I "$incdir" \
+                "$out" 2>/dev/null |
                 normalize | cmp -s - "$dir/ref"; then
             fail "$file: conversion into $target is not equivalent"
         fi
@@ -105,7 +113,8 @@ for prog in "$RUN_DIR"/*.cob; do
     [ -f "$prog" ] || continue
     dir="$WORK/run"; rm -rf "$dir"; mkdir -p "$dir"
     cp "$prog" "$dir/p.cob"
-    if ! (cd "$dir" && "$COBC" -x -free -o p p.cob && ./p > ref.txt); then
+    if ! (cd "$dir" && "$COBC" "${COBC_FLAGS[@]}" -x -free -o p p.cob &&
+              ./p > ref.txt); then
         fail "$prog: does not compile or run"
         continue
     fi
@@ -113,7 +122,8 @@ for prog in "$RUN_DIR"/*.cob; do
         tfmt="$(echo "${target%%:*}" | lower)"
         if ! convert free "$target" "$dir/p.cob" "$dir/c.cob"; then
             fail "$prog: conversion into $target"
-        elif ! (cd "$dir" && "$COBC" -x -fformat="$tfmt" -o c c.cob &&
+        elif ! (cd "$dir" && "$COBC" "${COBC_FLAGS[@]}" -x -fformat="$tfmt" \
+                    -o c c.cob &&
                     ./c > out.txt && cmp -s ref.txt out.txt); then
             fail "$prog: conversion into $target does not give the same output"
         fi

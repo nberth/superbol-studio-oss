@@ -45,6 +45,7 @@ val fold_lines
   -> ?on_compiler_directive
      : (int -> Preproc_directives.compiler_directive with_loc -> 'a -> 'a)
   -> ?on_comments: (Text.comments -> 'a -> 'a)
+  -> ?on_debug_lines: (Text.debug_lines -> 'a -> 'a)
   -> f:(int -> Text.t -> 'a -> 'a)
   -> t -> 'a -> 'a
 

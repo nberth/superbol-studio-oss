@@ -32,11 +32,18 @@ let show ?(source_format = Cobol_config.(SF SFFixed)) ?tab_stops contents =
             (match comment_kind with `Line -> "line" | `Floating -> "float")
             comment_offset comment_text) line.comments
     in
-    Pretty.out "%d: text@%d%s%s words=[%s] comments=[%s]@\n" line.lnum
+    Pretty.out "%d: text@%d%s%s words=[%s] comments=[%s]%s@\n" line.lnum
       (SL.text_column line.format)
       (if line.continued then " continued" else "")
       (if line.continues then " continues" else "")
       (String.concat " " words) (String.concat " " comments)
+      (match line.debug with
+       | None -> ""
+       | Some { debug_offset; debug_kind; debug_text } ->
+           Printf.sprintf " debug=%s@%d:%S"
+             (match debug_kind with
+              | `Indicator -> "indicator" | `Floating -> "floating")
+             debug_offset debug_text)
   end src.lines
 
 let%expect_test "fixed-format-lines" =
@@ -52,7 +59,7 @@ let%expect_test "fixed-format-lines" =
     2: text@7 words=[7-14 15-18] comments=[float@19:"*> floating"]
     3: text@7 continues words=[7-14 15-:"\"a long literal that is continued on the next line \"\"ab  cd\"\"ef\""] comments=[]
     4: text@7 continued words=[] comments=[]
-    5: text@7 words=[] comments=[]
+    5: text@7 words=[] comments=[] debug=indicator@6:"D    DISPLAY \"debug\""
     6: text@7 words=[] comments=[line@6:"/ page"]
     7: text@7 words=[] comments=[] |}]
 
@@ -75,3 +82,20 @@ let%expect_test "tabs-and-bom" =
     1: text@7 words=[10-17 18-21] comments=[]
     2: text@7 words=[5-12 13-16] comments=[]
     3: text@7 words=[] comments=[] |}]
+
+let%expect_test "debugging-lines" =
+  show {|      D    DISPLAY "indicator"
+       >>D DISPLAY "floating"
+           DISPLAY "code"
+|};
+  show ~source_format:Cobol_config.(SF SFFree) {|>>D DISPLAY "free"
+    >>D
+|};
+  [%expect {|
+    1: text@7 words=[] comments=[] debug=indicator@6:"D    DISPLAY \"indicator\""
+    2: text@7 words=[] comments=[] debug=floating@7:">>D DISPLAY \"floating\""
+    3: text@7 words=[11-18 19-25] comments=[]
+    4: text@7 words=[] comments=[]
+    1: text@0 words=[] comments=[] debug=floating@0:">>D DISPLAY \"free\""
+    2: text@0 words=[] comments=[] debug=floating@4:">>D"
+    3: text@0 words=[] comments=[] |}]

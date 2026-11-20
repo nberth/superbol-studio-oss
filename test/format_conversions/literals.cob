@@ -9,4 +9,5 @@ PROCEDURE DIVISION.
     DISPLAY 'Single-quoted literal that is long enough to need splitting, with '' a quote inside, and a few more words' *> comment
     DISPLAY "Short" " " "literals" " " "around" " " "a long one that will have to be split as well because it is so long, really"
     DISPLAY "    leading spaces, then text that is long enough to be split at least once at the margin of the target format"
+>>D DISPLAY "A debugging line, with a literal that is long enough to be split when converted" UPON CONSOLE
     STOP RUN.

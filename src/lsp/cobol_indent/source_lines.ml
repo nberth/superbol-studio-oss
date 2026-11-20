@@ -30,6 +30,13 @@ type comment =
     comment_text: string;
   }
 
+type debug =
+  {
+    debug_offset: int;
+    debug_kind: [`Indicator | `Floating];
+    debug_text: string;
+  }
+
 type line =
   {
     lnum: int;
@@ -37,6 +44,7 @@ type line =
     format: SF.any;
     words: word list;
     comments: comment list;
+    debug: debug option;
     continued: bool;
     continues: bool;
     source_format_directive: bool;
@@ -91,6 +99,7 @@ type acc_line =
   {
     mutable rev_words: word list;
     mutable rev_comments: comment list;
+    mutable debug_line: debug option;
     mutable is_continued: bool;
     mutable is_source_format_directive: bool;
     mutable line_format: SF.any option;
@@ -104,7 +113,8 @@ let scan ~(options: Cobol_preproc.Options.preproc_options) ~filename contents =
   let nlines = Array.length texts in
   let acc =
     Array.init nlines
-      (fun _ -> { rev_words = []; rev_comments = []; is_continued = false;
+      (fun _ -> { rev_words = []; rev_comments = []; debug_line = None;
+                  is_continued = false;
                   is_source_format_directive = false; line_format = None })
   in
   let valid l = 1 <= l && l <= nlines in
@@ -157,6 +167,17 @@ let scan ~(options: Cobol_preproc.Options.preproc_options) ~filename contents =
         end;
         res
       end
+      ~on_debug_lines:begin fun debug_lines res ->
+        List.iter begin fun Cobol_preproc.Text.{ debug_loc = (s, _);
+                                                  debug_kind;
+                                                  debug_contents } ->
+          if valid s.pos_lnum then
+            acc.(s.pos_lnum - 1).debug_line <-
+              Some { debug_offset = s.pos_cnum - s.pos_bol; debug_kind;
+                     debug_text = debug_contents }
+        end debug_lines;
+        res
+      end
       ~on_comments:begin fun comments res ->
         List.iter begin fun Cobol_preproc.Text.{ comment_loc = (s, _);
                                                   comment_kind;
@@ -195,6 +216,7 @@ let scan ~(options: Cobol_preproc.Options.preproc_options) ~filename contents =
       let words = List.rev a.rev_words in
       { lnum = i + 1; text; format = !format; words;
         comments = List.rev a.rev_comments;
+        debug = a.debug_line;
         continued = a.is_continued;
         source_format_directive = a.is_source_format_directive;
         continues = List.exists (fun w -> w.end_offset = None) words }

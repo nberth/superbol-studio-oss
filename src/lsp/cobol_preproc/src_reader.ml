@@ -192,12 +192,15 @@ let fold_chunks
     [on_compiler_directive] is called as if the text had been fed to [f].
 
     When given, [on_comments] is called once, after the last line has been fed
-    to [f], with all the comments of the input, in order. *)
+    to [f], with all the comments of the input, in order.  Similarly,
+    [on_debug_lines] is then called with all the debugging lines that were not
+    compiled. *)
 let fold_lines
     ~dialect
     ?skip_compiler_directives_text
     ?on_compiler_directive
     ?on_comments
+    ?on_debug_lines
     ~f pl acc =
   let loc_lnum { loc; _ } =
     (* On source text, which is NOT manipulated, we only have lexical locations,
@@ -244,9 +247,13 @@ let fold_lines
     | [] | { payload = Eof; _ } :: _ -> acc (* ... if non-empty *)
     | _ -> f last_lnum tail acc
   in
-  match on_comments with
+  let acc = match on_comments with
+    | None -> acc
+    | Some f -> f (List.rev (rev_comments pl)) acc
+  in
+  match on_debug_lines with
   | None -> acc
-  | Some f -> f (List.rev (rev_comments pl)) acc
+  | Some f -> f (List.rev (rev_debug_lines pl)) acc
 
 let print_lines ~dialect ?skip_compiler_directives_text ppf pl =
   fold_lines ~dialect ?skip_compiler_directives_text pl ()

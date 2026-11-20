@@ -36,6 +36,15 @@ type comment =
     comment_text: string;                     (** including the marker *)
   }
 
+(** Debugging line that is not compiled, with the byte offset in the line
+    where it starts (on its [D] indicator, or [>>D] marker). *)
+type debug =
+  {
+    debug_offset: int;
+    debug_kind: [`Indicator | `Floating];
+    debug_text: string;                (** including the indicator or marker *)
+  }
+
 type line =
   {
     lnum: int;                                                 (** 1-based *)
@@ -44,6 +53,7 @@ type line =
     words: word list;   (** words that start on the line, in order; empty for
                             blank, comment, and debugging lines *)
     comments: comment list;        (** comments that start on the line *)
+    debug: debug option;      (** debugging line that starts on the line *)
     continued: bool;    (** the line continues a previous line: some word
                             that starts on a previous line ends on, or spans,
                             this line, or the line has a continuation

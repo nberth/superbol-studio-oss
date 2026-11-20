@@ -121,7 +121,9 @@ val lex_file
 
     When given, [on_comments] is called once, {e after} all lines have been fed
     to [f], with all the comments of [input] (comment lines, and floating
-    comments), in order.
+    comments), in order.  Similarly, [on_debug_lines] is then called
+    with all the debugging lines that were not compiled (see
+    {!rev_debug_lines}).
 
     Diagnostics resulting from lexing and parsing the input are attached to the
     returned accumulated value. *)
@@ -135,6 +137,7 @@ val fold_source_lines
   -> ?on_compiler_directive
      : (int -> Preproc_directives.compiler_directive with_loc -> 'a -> 'a)
   -> ?on_comments: (Text.comments -> 'a -> 'a)
+  -> ?on_debug_lines: (Text.debug_lines -> 'a -> 'a)
   -> f:(int -> Text.text -> 'a -> 'a)
   -> Src_input.t
   -> 'a

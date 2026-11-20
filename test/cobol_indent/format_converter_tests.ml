@@ -117,9 +117,6 @@ MAIN.
           D    DISPLAY "DEBUG"
                STOP RUN.
 
-    prog.cob:11.0-11.19:
-    >> Error: Invalid >>D compiler directive
-
     same words |}]
 
 let%expect_test "long-lines" =
@@ -239,9 +236,6 @@ let%expect_test "fixed-to-free" =
     >>D    DISPLAY "DEBUG"
         MOVE A-VERY-LONG-DATA-NAME-1 TO B-VERY-LONG-DATA-NAME-2 C-3
         STOP RUN.
-
-    prog.cob:7.0-7.22:
-    >> Error: Invalid >>D compiler directive
 
     same words |}]
 
@@ -433,7 +427,38 @@ let%expect_test "right-margin-debugging-line" =
           D       C-VERY-LONG-DATA-NAME-3
                STOP RUN.
 
-    prog.cob:2.0-2.83:
-    >> Error: Invalid >>D compiler directive
+    same words |}]
+
+let%expect_test "debugging-lines" =
+  let prog = {|       PROCEDURE DIVISION.
+      D    DISPLAY "a debugging line with a literal that is quite long"
+       >>D DISPLAY "floating"
+           STOP RUN.
+|} in
+  show ~source_format:Cobol_config.(SF SFFixed) ~target:"FREE" prog;
+  show ~source_format:Cobol_config.(SF SFFixed) ~target:"FIXED" prog;
+  show ~source_format:Cobol_config.(SF SFFree) ~target:"FIXED" {|PROCEDURE DIVISION.
+    >>D DISPLAY "a floating debugging line that is long enough to be split, with a literal" UPON CONSOLE
+>>D
+    STOP RUN.
+|};
+  [%expect {|
+    PROCEDURE DIVISION.
+    >>D    DISPLAY "a debugging line with a literal that is quite long"
+    >>D    DISPLAY "floating"
+        STOP RUN.
+
+    same words
+           PROCEDURE DIVISION.
+          D    DISPLAY "a debugging line with a literal that is quite long"
+          D    DISPLAY "floating"
+               STOP RUN.
+
+    same words
+           PROCEDURE DIVISION.
+          D    DISPLAY "a floating debugging line that is long enough to " &|
+          D       "be split, with a literal" UPON CONSOLE
+          D
+               STOP RUN.
 
     same words |}]
