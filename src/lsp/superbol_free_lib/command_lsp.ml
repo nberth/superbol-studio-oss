@@ -24,29 +24,58 @@ let cache_for ~cache_storage_location:storage_location ~rootdir
   | None ->
       Superbol_cache.Cache.disabled
 
-let run_lsp ~enable_caching ~force_syntax_diagnostics ~storage
-    ?cache_max_age ?cache_max_size
-    ?(extensions = Cobol_lsp.default_extensions) () =
+(** Options of the server, common to the commands that run it. *)
+type server_options =
+  {
+    enable_caching: bool;
+    force_syntax_diagnostics: bool;
+    storage_directory: string option;
+  }
+
+(** [server_args ()] gives the arguments of the options of the server, along
+    with a function that gives their values once arguments are parsed. *)
+let server_args () =
+  let caching, caching_args =
+    Arg_utils.switch `enable_disable ~name:"caching" ~default:true
+  and syntax_diagnostics, syntax_diagnostics_args =
+    Arg_utils.switch `force ~name:"syntax-diagnostics" ~default:false
+      ~descr:"reporting of syntax error and hint diagnostics for dialects other \
+              than COBOL85 (for which they are always enabled)"
+  and storage_directory = ref None in
+  (fun () -> { enable_caching = !caching;
+               force_syntax_diagnostics = !syntax_diagnostics;
+               storage_directory = !storage_directory }),
+  caching_args @ syntax_diagnostics_args @ [
+    ["storage-directory"], Arg.String (fun s -> storage_directory := Some s),
+    EZCMD.info ~docv:"DIR"
+      "Directory under which to store cache data --- prevents the creation \
+       of a \"_superbol\" storage directory at the root of project trees.";
+  ]
+
+(** [lsp_config ~enable_client_configs ~verbose ?cache_pruning_policy options]
+    is the configuration of a server run with [options]. *)
+let lsp_config ~enable_client_configs ~verbose
+    ?(cache_pruning_policy = Superbol_cache.Config.pruning_policy ())
+    { enable_caching; force_syntax_diagnostics; storage_directory } =
+  let setup =
+    Project_commands.lsp_like_setup () ~enable_caching ?storage_directory
+  in
+  Cobol_lsp.Types.{
+    lsp_project_layout = setup.layout;
+    lsp_cache_for = cache_for ~cache_storage_location:setup.storage_location;
+    lsp_cache_pruning_policy = cache_pruning_policy;
+    lsp_cache_verbose = verbose;
+    enable_client_configs;
+    force_syntax_diagnostics;
+  }
+
+let run_lsp ?cache_max_age ?cache_max_size
+    ?(extensions = Cobol_lsp.default_extensions) options =
   Cobol_preproc.Src_overlay.debug_oc := !Cobol_lsp.INTERNAL.Debug.debug_oc;
-  let project_layout =
-    Superbol_project.Layout.create ?shared_storage_directory:storage ()
-  and cache_pruning_policy =
-    Superbol_cache.Config.pruning_policy ?cache_max_age ?cache_max_size ()
-  in
-  let cache_storage_location =
-    Result.fold ~ok:Fun.id ~error:(Pretty.failwith "%s") @@
-    Superbol_project.Cache.storage_location ~enable_caching ~project_layout ()
-      ?fallback_storage_directory:storage
-  in
   let lsp_config =
-    Cobol_lsp.Types.{
-      lsp_project_layout = project_layout;
-      lsp_cache_for = cache_for ~cache_storage_location;
-      lsp_cache_pruning_policy = cache_pruning_policy;
-      lsp_cache_verbose = true;
-      enable_client_configs = true;
-      force_syntax_diagnostics;
-    }
+    lsp_config options ~enable_client_configs:true ~verbose:true
+      ~cache_pruning_policy:(Superbol_cache.Config.pruning_policy ()
+                               ?cache_max_age ?cache_max_size)
   in
   match Cobol_lsp.run ~platform ~config:lsp_config ~extensions with
   | Ok () -> ()
@@ -66,30 +95,17 @@ let js_specific_args =
       []
 
 let make_cmd ?extensions () =
-  let caching, caching_args =
-    Arg_utils.switch `enable_disable ~name:"caching" ~default:true
-  and syntax_diagnostics, syntax_diagnostics_args =
-    Arg_utils.switch `force ~name:"syntax-diagnostics" ~default:false
-      ~descr:"reporting of syntax error and hint diagnostics for dialects other \
-              than COBOL85 (for which they are always enabled)"
-  in
-  let storage = ref None
+  let server_options, server_args = server_args ()
   and cache_max_age = ref None
   and cache_max_size = ref None in
   EZCMD.sub "lsp"
     (fun () ->
-       run_lsp ~enable_caching:!caching
-         ~force_syntax_diagnostics:!syntax_diagnostics
+       run_lsp (server_options ())
          ?cache_max_age:!cache_max_age
          ?cache_max_size:!cache_max_size
-         ~storage:!storage ?extensions ())
+         ?extensions)
     ~doc:"run LSP server"
-    ~args: (caching_args @ syntax_diagnostics_args @ js_specific_args @ [
-        ["storage-directory"], Arg.String (fun s -> storage := Some s),
-        EZCMD.info ~docv:"DIR"
-          "Directory under which to store cache data --- prevents the creation \
-           of a \"_superbol\" storage directory at the root of project trees.";
-
+    ~args: (server_args @ js_specific_args @ [
         ["cache-size-limit"],
         Arg.String begin fun s -> match Arg_utils.size_of_string s with
           | Ok size -> cache_max_size := Some size

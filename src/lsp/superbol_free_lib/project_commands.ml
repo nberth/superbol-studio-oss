@@ -50,11 +50,13 @@ let default_setup =
     encoding = None;
   }
 
-(** [lsp_like_setup ?storage_directory ?client_settings ?encoding ()] sets
-    projects up as an LSP server started with [--storage-directory
-    storage_directory] does, whose client sends [client_settings] and decodes
-    files with [encoding]. *)
-let lsp_like_setup ?storage_directory ?client_settings ?encoding () =
+(** [lsp_like_setup ?enable_caching ?storage_directory ?client_settings
+    ?encoding ()] sets projects up as an LSP server started with
+    [--storage-directory storage_directory] (and [--disable-caching] unless
+    [enable_caching] holds) does, whose client sends [client_settings] and
+    decodes files with [encoding]. *)
+let lsp_like_setup ?enable_caching ?storage_directory ?client_settings ?encoding
+    () =
   let layout =
     Superbol_project.Layout.create ?shared_storage_directory:storage_directory
       ()
@@ -62,7 +64,7 @@ let lsp_like_setup ?storage_directory ?client_settings ?encoding () =
   let storage_location =
     Result.fold ~ok:Fun.id ~error:(Pretty.failwith "%s") @@
     Superbol_project.Cache.storage_location ~project_layout:layout ()
-      ?fallback_storage_directory:storage_directory
+      ?enable_caching ?fallback_storage_directory:storage_directory
   in
   { project_root = None; layout; storage_location; client_settings; encoding }
 
