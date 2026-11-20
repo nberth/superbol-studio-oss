@@ -17,12 +17,17 @@ type indent_record = {
   lnum :         int;
   offset_orig :  int;
   mutable offset_modif : int;
+  base_col : int;  (* 0-based visual column that offsets are relative to *)
+  max_text_length : int;  (* width of the text area, from [base_col] *)
 }
 
-type edit_space_operation = {
-  line : int ;
-  char : int ; (* relative to begin-of-line, before change application *)
-  spaces : int ; (* positive for addition, negative for deletion *)
+(* Replacement of bytes [start_offset, end_offset) of line [line_number]
+   (1-based) with [new_text]; offsets do not count end-of-line characters. *)
+type line_edit = {
+  line_number : int;
+  start_offset : int;
+  end_offset : int;
+  new_text : string;
 }
 
 type range = {

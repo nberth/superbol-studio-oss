@@ -21,7 +21,7 @@ open Cobol_indent.Types
 open Common_args
 
 let action ~numeric ~intext ~inplace ?suffix ?range
-    { preproc_options = { source_format; config; _ } ; _ } files =
+    { preproc_options ; _ } files =
 
   let f ?contents filename =
     let project = Project.for_ ~filename () in
@@ -38,10 +38,8 @@ let action ~numeric ~intext ~inplace ?suffix ?range
     in
 
     let edits, _ops = Cobol_indent.Main.indent
-        ~platform:Superbol_platform.record
-        ~source_format
+        ~options:preproc_options
         ~config:project.config.indent_config
-        ~dialect:config.origin.id
         ~filename
         ?output
         ?range
@@ -55,8 +53,6 @@ let action ~numeric ~intext ~inplace ?suffix ?range
     | None ->
 
       if numeric then
-        let source_format = Cobol_indent.Config.source_format source_format in
-
         let output_numeric oc =
           let rec iter line edits =
             match edits with
@@ -72,10 +68,10 @@ let action ~numeric ~intext ~inplace ?suffix ?range
               iter_edit (line+1) edit edits
             end else begin
               let indent =
-                if intext || source_format.free then
+                if intext then
                   edit.offset_modif
                 else
-                  source_format.skip_before + 1 + edit.offset_modif
+                  edit.base_col + edit.offset_modif
               in
               Printf.fprintf oc "%d\n" indent ;
               iter (line+1) edits
@@ -114,7 +110,7 @@ let generate_config ~platform =
   let config =
     Cobol_indent.Config.load ~platform
       ~source_format:(Cobol_indent.Config.source_format Cobol_config.Types.(SF SFFixed))
-      ~filename:"file.cob"
+      ~filename:"file.cob" ()
   in
   Cobol_indent.Config.generate ~config ".superbol-indent"
 

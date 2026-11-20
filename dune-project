@@ -524,7 +524,9 @@
  (depends
    (ocaml (>= 4.14.2))
    (fmt ( >= 0.9 ))
+   (cobol_preproc (= :version))
    (cobol_config (= :version))
+   (cobol_common (= :version))
    odoc
    (dune (and ( >= 3.17.0 )( < 3.19.0 )))
   )

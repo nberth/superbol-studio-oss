@@ -543,3 +543,135 @@ let%expect_test "formatting-request-perform" =
         STOP RUN.
     PARA-2.
         DISPLAY "HELLO". |}]
+
+(* --- Source formats --- *)
+
+let format_doc_in ~source_format doc =
+  let { projdir; end_with_postproc }, server =
+    make_lsp_project () ~toml:(Printf.sprintf {toml|
+      [cobol]
+      source-format = "%s"
+    |toml} source_format)
+  in
+  let server, prog = add_cobol_doc server ~projdir "prog.cob" doc in
+  let params =
+    let options = FormattingOptions.create ~insertSpaces:true ~tabSize:2 () in
+    DocumentFormattingParams.create ~options ~textDocument:prog ()
+  in
+  let doc = (LSP.Types.URIMap.find prog.uri server.docs).textdoc in
+  let formatted = LSP.Request.INTERNAL.formatting server params in
+  begin match formatted with
+    | None ->
+        Pretty.out "formatting error"
+    | Some edits ->
+        Lsp.Text_document.apply_text_document_edits doc edits |>
+        Lsp.Text_document.text |>
+        String.split_on_char '\n' |>
+        (* show tabs, and where lines end *)
+        List.iter (fun l ->
+            Pretty.out "%s|@\n" (Str.global_replace (Str.regexp "\t") "<TAB>" l))
+  end;
+  end_with_postproc
+
+(* [fixed_line seq text tag] is a fixed-format line with sequence number
+   [seq], [text] from column 8, and [tag] from column 73. *)
+let fixed_line ?(indicator = ' ') seq text tag =
+  Printf.sprintf "%-6s%c%-65s%s" seq indicator text tag
+
+let%expect_test "formatting-request-fixed-with-margins" =
+  let doc = String.concat "\n" [
+      fixed_line "000100" "IDENTIFICATION DIVISION." "PROG0001";
+      fixed_line "000200" "PROGRAM-ID. PROG." "PROG0002";
+      fixed_line "000300" "PROCEDURE DIVISION." "PROG0003";
+      fixed_line "000400" "  PARA-1." "PROG0004";
+      fixed_line "000500" "DISPLAY \"HELLO\"" "PROG0005";
+      fixed_line "000600" "          STOP RUN." "PROG0006";
+      fixed_line "000700" ~indicator:'*' "  a comment" "PROG0007";
+    ] in
+  let end_with_postproc = format_doc_in ~source_format:"fixed" doc in
+  end_with_postproc [%expect.output];
+  [%expect {|
+    {"params":{"diagnostics":[],"uri":"file://__rootdir__/prog.cob"},"method":"textDocument/publishDiagnostics","jsonrpc":"2.0"}
+    000100 IDENTIFICATION DIVISION.                                         PROG0001|
+    000200 PROGRAM-ID. PROG.                                                PROG0002|
+    000300 PROCEDURE DIVISION.                                              PROG0003|
+    000400 PARA-1.                                                          PROG0004|
+    000500     DISPLAY "HELLO"                                              PROG0005|
+    000600     STOP RUN.                                                    PROG0006|
+    000700*  a comment                                                      PROG0007| |}]
+
+let%expect_test "formatting-request-fixed-with-tabs" =
+  let doc = String.concat "\n" [
+      "       PROGRAM-ID. PROG.";
+      "       PROCEDURE DIVISION.";
+      "\tIF A = B";
+      "\t  DISPLAY \"HELLO\"";
+      "\tEND-IF";
+      "\t    STOP RUN.";
+    ] in
+  let end_with_postproc = format_doc_in ~source_format:"fixed" doc in
+  end_with_postproc [%expect.output];
+  [%expect {|
+    {"params":{"diagnostics":[],"uri":"file://__rootdir__/prog.cob"},"method":"textDocument/publishDiagnostics","jsonrpc":"2.0"}
+           PROGRAM-ID. PROG.|
+           PROCEDURE DIVISION.|
+               IF A = B|
+                  DISPLAY "HELLO"|
+               END-IF|
+               STOP RUN.| |}]
+
+let%expect_test "formatting-request-fixed-with-continuation" =
+  let doc = String.concat "\n" [
+      "       PROGRAM-ID. PROG.";
+      "       PROCEDURE DIVISION.";
+      "       DISPLAY \"A long literal that is continued on the next line wh";
+      "      -    \"ich is not moved\"";
+      "       STOP RUN.";
+    ] in
+  let end_with_postproc = format_doc_in ~source_format:"fixed" doc in
+  end_with_postproc [%expect.output];
+  [%expect {|
+    {"params":{"diagnostics":[],"uri":"file://__rootdir__/prog.cob"},"method":"textDocument/publishDiagnostics","jsonrpc":"2.0"}
+           PROGRAM-ID. PROG.|
+           PROCEDURE DIVISION.|
+           DISPLAY "A long literal that is continued on the next line wh|
+          -    "ich is not moved"|
+               STOP RUN.| |}]
+
+let%expect_test "formatting-request-change-of-source-format" =
+  let doc = String.concat "\n" [
+      "       PROGRAM-ID. PROG.";
+      "       PROCEDURE DIVISION.";
+      "       DISPLAY \"FIXED\"";
+      "       >>SOURCE FORMAT IS FREE";
+      "DISPLAY \"FREE\"";
+      "  STOP RUN.";
+    ] in
+  let end_with_postproc = format_doc_in ~source_format:"fixed" doc in
+  end_with_postproc [%expect.output];
+  [%expect {|
+    {"params":{"diagnostics":[],"uri":"file://__rootdir__/prog.cob"},"method":"textDocument/publishDiagnostics","jsonrpc":"2.0"}
+           PROGRAM-ID. PROG.|
+           PROCEDURE DIVISION.|
+               DISPLAY "FIXED"|
+           >>SOURCE FORMAT IS FREE|
+        DISPLAY "FREE"|
+        STOP RUN.| |}]
+
+let%expect_test "formatting-request-xopen" =
+  let doc = String.concat "\n" [
+      "PROGRAM-ID. PROG.";
+      "PROCEDURE DIVISION.";
+      "* a comment";
+      "DISPLAY \"HELLO\"";
+      "STOP RUN.";
+    ] in
+  let end_with_postproc = format_doc_in ~source_format:"xopen" doc in
+  end_with_postproc [%expect.output];
+  [%expect {|
+    {"params":{"diagnostics":[],"uri":"file://__rootdir__/prog.cob"},"method":"textDocument/publishDiagnostics","jsonrpc":"2.0"}
+    PROGRAM-ID. PROG.|
+    PROCEDURE DIVISION.|
+    * a comment|
+        DISPLAY "HELLO"|
+        STOP RUN.| |}]

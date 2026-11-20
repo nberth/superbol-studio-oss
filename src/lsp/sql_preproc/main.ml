@@ -31,7 +31,7 @@ let preproc ~platform ~filename ?(sql_in_copybooks = false) ?(copy_path = [])
     | Some c -> c
   in
   let scanner_config = Cobol_indent.Config.load ~platform
-      ~source_format ~filename in
+      ~source_format ~filename () in
 
   if scanner_config.verbosity > 0 then
     Printf.eprintf "Parsing file %S...\n%!" filename;

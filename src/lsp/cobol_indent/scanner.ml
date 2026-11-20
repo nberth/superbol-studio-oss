@@ -112,7 +112,10 @@ let tokens_of_lines ~filename ~config ~contents skipped_revlines lines =
           in
           let edit = { lnum = line_num ;
                        offset_orig ;
-                       offset_modif = offset_orig ; } in
+                       offset_modif = offset_orig ;
+                       base_col = base_indent + config.whole_file_indent ;
+                       max_text_length =
+                         config.source_format.max_text_length ; } in
           revedits := edit :: !revedits ;
           let dont_indent_line = is_continuation || has_continuation in
           let edit =  { bol = not dont_indent_line ; edit } in

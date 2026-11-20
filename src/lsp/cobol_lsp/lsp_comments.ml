@@ -20,6 +20,7 @@
 open Lsp.Types
 
 module SF = Cobol_preproc.Src_format
+module Tab_stops = Cobol_common.Tab_stops
 
 (* --- *)
 
@@ -50,37 +51,6 @@ let format_at_line (changes: format_changes) line =
   List.fold_left begin fun current (l, sf) ->
     if l <= line then sf else current
   end (snd (List.hd changes)) changes
-
-(* --- *)
-
-(** Location of a visual column in a line. *)
-type column_spot =
-  | Char of int    (** byte offset of the character at the visual column *)
-  | Tab of { offset: int; start_col: int; next_col: int }
-  (** tab at byte [offset] that spans the visual column ([start_col <= col <
-      next_col]) *)
-  | Short                         (** the line ends before the visual column *)
-
-(** [locate_column ~tab_stops line col] locates the visual column [col]
-    (1-based) in [line].  UTF-8 continuation bytes do not count as columns. *)
-let locate_column ~tab_stops line col =
-  let len = String.length line in
-  let rec aux i c =
-    if i >= len then Short
-    else match line.[i] with
-      | '\t' ->
-          let next_col = SF.next_tab_stop ~tab_stops c in
-          if c <= col && col < next_col
-          then Tab { offset = i; start_col = c; next_col }
-          else aux (succ i) next_col
-      | '\128'..'\191' ->                         (* UTF-8 continuation byte *)
-          aux (succ i) c
-      | _ when c = col ->
-          Char i
-      | _ ->
-          aux (succ i) (succ c)
-  in
-  aux 0 1
 
 (* --- *)
 
@@ -155,7 +125,7 @@ let indicator_status ~tab_stops ~mf_comments ~indic_col sf line =
   if mf_comments && SF.mf_comment_applies sf' &&
      String.length line > 0 && line.[0] = '*'
   then Comment { uncomment = replace ~at:0 " " }
-  else match locate_column ~tab_stops line indic_col with
+  else match Tab_stops.locate_column ~tab_stops line indic_col with
     | Short ->
         Blank
     | Tab { offset; start_col; next_col } ->

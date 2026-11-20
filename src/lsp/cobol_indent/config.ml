@@ -81,7 +81,20 @@ let to_string config =
   Buffer.contents b
 
 
-let load ~platform ~source_format ~filename =
+(* Options given as [(name, value)] pairs, e.g, from the [indent] table of
+   the project configuration.  Unknown options are ignored. *)
+let apply_unparsed config (unparsed: unparsed_config) =
+  List.fold_left begin fun config (option, n) ->
+    match String.lowercase_ascii option with
+    | "whole-file-indent" -> { config with whole_file_indent = n }
+    | "arg-offset" -> { config with arg_offset = n }
+    | "inner-offset" -> { config with inner_offset = n }
+    | "data-item-offset" -> { config with data_item_offset = Some n }
+    | "select-in-area-a" -> { config with select_in_area_a = n <> 0 }
+    | _ -> config
+  end config unparsed
+
+let load ~platform ~source_format ?(unparsed = []) ~filename () =
   if verbose then
     Printf.eprintf "Config.load for %S\n%!" filename;
   let filename =
@@ -91,10 +104,7 @@ let load ~platform ~source_format ~filename =
       filename
   in
   let dirname = Filename.dirname filename in
-  let default = {
-    default with source_format
-  }
-  in
+  let default = apply_unparsed { default with source_format } unparsed in
 
   let rec iter dir =
     let dirdir = Filename.dirname dir in

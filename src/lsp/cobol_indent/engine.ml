@@ -107,7 +107,6 @@ let display state fun_name tokens =
 
 let indent_tokens ~config tokens =
 
-  let source_format = config.source_format in
   let state = {
     indent = 0;
     directive_stack = [] ;
@@ -322,25 +321,12 @@ let indent_tokens ~config tokens =
         edit
     in
 
+    (* Shift the line back to the left if the token would overflow the text
+       area, without moving it further left than it originally was. *)
     let indent_diff = edit.offset_modif - edit.offset_orig in
     let max_indent = descr.tok_indent + indent_diff + descr.tok_length in
-
-    if max_indent > source_format.max_text_length then begin
-      let fix_indent = max_indent - source_format.max_text_length in
-      if verbose || not (fix_indent <= indent_diff) then begin
-        Printf.eprintf "offset_modif = %d\n" edit.offset_modif ;
-        Printf.eprintf "offset_orig = %d\n" edit.offset_orig ;
-        Printf.eprintf "indent_diff = %d\n" indent_diff ;
-        Printf.eprintf "tok_indent = %d\n" descr.tok_indent ;
-        Printf.eprintf "tok_length = %d\n" descr.tok_length ;
-        Printf.eprintf "max_indent = %d\n" max_indent ;
-        Printf.eprintf "max_text_length = %d\n"
-          source_format.max_text_length ;
-        Printf.eprintf "fix_indent = %d\n" fix_indent ;
-        Printf.eprintf "fix_indent = %d > indent_diff = %d\b%!"
-          fix_indent indent_diff ;
-      end;
-      assert (fix_indent <= indent_diff) ;
+    if indent_diff > 0 && max_indent > edit.max_text_length then begin
+      let fix_indent = min indent_diff (max_indent - edit.max_text_length) in
       edit.offset_modif <- edit.offset_modif - fix_indent ;
       if verbose then
         Printf.eprintf "  %s ==> fix: -%d --> %d\n%!"

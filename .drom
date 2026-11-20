@@ -5,7 +5,7 @@ version:0.9.0
 
 # hash of toml configuration files
 # used for generation of all files
-e9c7f6daba0ab6808c4d2e88c9cb9ba1:.
+e9fc7495f494967db51750a207d61b9f:.
 # end context for .
 
 # begin context for .github/workflows/workflow.yml
@@ -55,7 +55,7 @@ c8281f46ba9a11d0b61bc8ef67eaa357:docs/style.css
 
 # begin context for dune-project
 # file dune-project
-9ac9d98082b8e27f8cc5c2ac5e1927e5:dune-project
+569118f8c34cb542cf8a09d5adf69bdc:dune-project
 # end context for dune-project
 
 # begin context for opam/autofonce.opam
@@ -140,7 +140,7 @@ f2375b241588c4abe3410c7cf049bb4e:opam/cobol_dialect.opam
 
 # begin context for opam/cobol_indent.opam
 # file opam/cobol_indent.opam
-d6a2045782e3c1fb664f89953afa3081:opam/cobol_indent.opam
+2247377fc0dcc839d5b9959cf6de153f:opam/cobol_indent.opam
 # end context for opam/cobol_indent.opam
 
 # begin context for opam/cobol_interp.opam
@@ -655,7 +655,7 @@ a18438bf6e347bb93779045b0a7006d1:src/lsp/cobol_dialect/version.mlt
 
 # begin context for src/lsp/cobol_indent/dune
 # file src/lsp/cobol_indent/dune
-d3b7ae62f945ba98a321709cb807d516:src/lsp/cobol_indent/dune
+7d0ff2a53a8ed0f727f2df06d4ae29e7:src/lsp/cobol_indent/dune
 # end context for src/lsp/cobol_indent/dune
 
 # begin context for src/lsp/cobol_indent/package.toml

@@ -465,126 +465,48 @@ let handle_references state (params: ReferenceParams.t) =
 
 (** {3 Formatting} *)
 
-let to_textedits ( ops : Cobol_indent.Types.edit_space_operation list ) =
-
-  let rec iter ops ~lnum ~delta rev =
-    match ops with
-    | [] -> List.rev rev
-
-    (* two consecutive deletions *)
-    | { Cobol_indent.Types.line = line1 ; char = char1 ; spaces = spaces1 } as op
-      :: { line = line2 ; char = char2 ; spaces = spaces2 }
-      :: ops
-      when line1 = line2 && spaces1 < 0 && spaces2 < 0 &&
-           char2 = char1 - spaces1 ->
-        let ops = { op with spaces = spaces1 + spaces2 } :: ops in
-        iter ops ~lnum ~delta rev
-
-    (* two consecutive insertions *)
-    | { line = line1 ; char = char1 ; spaces = spaces1 } as op
-      :: { line = line2 ; char = char2 ; spaces = spaces2 }
-      :: ops
-      when line1 = line2 && spaces1 > 0 && spaces2 > 0 &&
-           char2 = char1 + spaces1 ->
-        let ops = { op with spaces = spaces1 + spaces2 } :: ops in
-        iter ops ~lnum ~delta rev
-
-    | { line ; char ; spaces } :: ops ->
-
-        let line = line - 1 in
-        let delta = if line = lnum then delta else 0 in
-        let char = char + delta in
-        let start = Position.create ~line ~character:char in
-        if spaces > 0 then
-          (* add spaces *)
-          let range = Range.create ~start ~end_:start in
-          let edit = TextEdit.create ~newText:(String.make spaces ' ') ~range in
-          let delta = delta + spaces in
-          iter ops ~lnum ~delta ( edit :: rev )
-        else
-          (* delete spaces *)
-          let spaces = -spaces in
-          let end_ = Position.create ~line ~character:(char + spaces) in
-          let range = Range.create ~start ~end_ in
-          let edit = TextEdit.create ~newText:"" ~range in
-          let delta = delta - spaces in
-          iter ops ~lnum:line ~delta ( edit :: rev )
-
-  in
-  iter ops [] ~lnum:0 ~delta:0
-
-(*
-let lsp_text_edit Cobol_indent.Types.{ lnum; offset_orig; offset_modif } =
-  let delta = offset_modif - offset_orig in
-  let position = Position.create ~line:(lnum - 1) ~character:offset_orig in
-  let range = Range.create ~start:position ~end_:position in
-  if delta > 0 then
-    TextEdit.create ~newText:(String.make delta ' ') ~range
-  else
-    let start =
-      Position.create ~line:(lnum - 1) ~character:(offset_orig + delta)
-    in
-    let range = Range.create ~start ~end_:position in
-    TextEdit.create ~newText:"" ~range
-*)
-
-(*Remark:
-    The first line of the text selected to RangeFormatting must be
-    the begin of statement/paragraph/section/division/01 level data declaration,
-    and the text selected must terminate in the same scope.
-    Otherwise, unexpected result.
-*)
-(* Note: the source format is resolved via [source_format_for], which checks
-   for per-extension overrides before falling back to the global setting. *)
-let handle_range_formatting registry params =
-  let open DocumentRangeFormattingParams in
-  let { textDocument = doc; range = {start; end_}; _ } = params in
-  let Lsp_document.{ project; textdoc; _ } =
+(** Indents the lines of [doc] within [range] (all lines if not given), and
+    returns the edits in the negotiated position encoding. *)
+let indent_document ?range doc registry =
+  let Lsp_document.{ project; textdoc; _ } as doc =
     Lsp_server.find_document doc registry
   in
-  let range_to_indent =
-    Cobol_indent.Types.{
-      start_line = start.line + 1;
-      end_line = end_.line + 1
-    }
-  in
-  let _edit_list, edit_ops =
-    let filename = Lsp_utils.path_of_uri doc.uri in
-    Cobol_indent.Main.indent
-      ~platform:Lsp_platform.record
-      ~dialect:(Cobol_config.dialect project.config.cobol_config)
-      ~source_format:(Superbol_project.Config.source_format_for
-                        ~filename project.config)
-      ~config:project.config.indent_config
-      ~filename
-      ~contents:(Lsp.Text_document.text textdoc)
-      ~range:range_to_indent
-      ()
-  in
-  Some ( to_textedits edit_ops ) (* (List.map lsp_text_edit edit_list) *)
-
-(* Note: the source format is resolved via [source_format_for], which checks
-   for per-extension overrides before falling back to the global setting. *)
-let handle_formatting registry params =
-  let DocumentFormattingParams.{ textDocument = doc; _ } = params in
-  let Lsp_document.{ project; textdoc; _ } =
-    Lsp_server.find_document doc registry in
+  let platform = Lsp_platform.record in
+  let filename = Lsp_utils.path_of_uri (Lsp_document.uri doc) in
+  let text = Lsp.Text_document.text textdoc in
+  let position_encoding = Lsp.Text_document.position_encoding textdoc in
   try
-    let filename = Lsp_utils.path_of_uri doc.uri in
-    let _editList, edit_ops =
-      Cobol_indent.Main.indent
-        ~platform:Lsp_platform.record
-        ~dialect:(Cobol_config.dialect project.config.cobol_config)
-        ~source_format:(Superbol_project.Config.source_format_for
-                          ~filename project.config)
-        ~config:project.config.indent_config
-        ~filename
-        ~contents:(Lsp.Text_document.text textdoc)
-        ()
+    let _, edits =
+      Cobol_indent.Main.indent ~filename ?range ~contents:text
+        ~options:(Lsp_document.preproc_options ~platform doc)
+        ~config:project.config.indent_config ()
     in
-    Some ( to_textedits edit_ops ) (* List.map lsp_text_edit editList) *)
+    let lines = Lsp_comments.split_lines text in
+    Option.some @@ List.rev @@                   (* there may be many edits *)
+    List.rev_map begin fun Cobol_indent.Types.{ line_number; start_offset;
+                                                 end_offset; new_text } ->
+      let line_num = line_number - 1 in
+      Lsp_comments.text_edit ~position_encoding ~line_num lines.(line_num)
+        { start_offset; end_offset; new_text }
+    end edits
   with Failure msg ->
     Lsp_error.internal "Formatting error: %s" msg
+
+(* Note: the range should start at the beginning of a statement, paragraph,
+   section, division, or level-01 data item, and the text it covers should
+   end in the same scope. *)
+let handle_range_formatting registry params =
+  let DocumentRangeFormattingParams.{ textDocument = doc;
+                                      range = { start; end_ }; _ } = params in
+  let range =
+    Cobol_indent.Types.{ start_line = start.line + 1;
+                         end_line = end_.line + 1 }
+  in
+  indent_document ~range doc registry
+
+let handle_formatting registry params =
+  let DocumentFormattingParams.{ textDocument = doc; _ } = params in
+  indent_document doc registry
 
 (** {3 Semantic tokens} *)
 
