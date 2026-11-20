@@ -1,0 +1,9 @@
+(library
+ (name test_cobol_indent)
+ (modules source_lines_tests)
+ (preprocess
+   (pps ppx_expect))
+ (inline_tests
+   (modes best))
+ (libraries cobol_indent testing_utils)
+ )

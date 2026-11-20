@@ -643,7 +643,7 @@ let lex_file ~platform ~dialect ~source_format ?src_options ?ppf filename =
 
 let fold_source_lines ~platform ~dialect ~source_format ?src_options
     ?on_change_of_source_format ?skip_compiler_directives_text
-    ?on_compiler_directive ~f input acc =
+    ?on_compiler_directive ?on_comments ~f input acc =
   let reader =
     Src_reader.from input ?source_format:(source_format_config source_format)
       ?options:src_options ~platform
@@ -664,7 +664,7 @@ let fold_source_lines ~platform ~dialect ~source_format ?src_options
        acc, on_compiler_directive
   in
   Src_reader.fold_lines ~dialect ~f reader
-    ?skip_compiler_directives_text ?on_compiler_directive acc
+    ?skip_compiler_directives_text ?on_compiler_directive ?on_comments acc
 
 let fold_source_words ~dialect ~source_format ~f input acc =
   fold_source_lines ~dialect ~source_format input acc

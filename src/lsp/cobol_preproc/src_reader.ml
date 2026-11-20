@@ -147,8 +147,8 @@ let fold_chunks
     ?on_compiler_directive
     ~f pl acc =
   let rec aux pl acc = match next_chunk pl with
-    | _pl, { payload = Eof; _} :: _ ->
-        acc
+    | pl, { payload = Eof; _} :: _ ->
+        pl, acc
     | pl, text ->
         match try_compiler_directive ~dialect text with
         | None ->
@@ -173,7 +173,7 @@ let fold_chunks
     | CDir_control_section
     | CDir_preproc _ -> pl                                           (* ignore *)
   in
-  aux pl acc
+  aux pl acc                        (* returns the reader at the end of input *)
 
 (* --- *)
 
@@ -188,11 +188,15 @@ let fold_chunks
 
     When set, [skip_compiler_directives_text] ([false] by default) prevents the
     text of compiler directives from being fed to [f].  If given,
-    [on_compiler_directive] is called as if the text had been fed to [f]. *)
+    [on_compiler_directive] is called as if the text had been fed to [f].
+
+    When given, [on_comments] is called once, after the last line has been fed
+    to [f], with all the comments of the input, in order. *)
 let fold_lines
     ~dialect
     ?skip_compiler_directives_text
     ?on_compiler_directive
+    ?on_comments
     ~f pl acc =
   let loc_lnum { loc; _ } =
     (* On source text, which is NOT manipulated, we only have lexical locations,
@@ -229,14 +233,19 @@ let fold_lines
     let acc = f' new_lnum cdir acc in    (* call [f'] at end of corresp. line *)
     acc, succ new_lnum, []
   in
-  let acc, last_lnum, tail =
+  let pl, (acc, last_lnum, tail) =
     fold_chunks ~dialect pl ~f:spit_chunk (acc, 1, [])
       ?skip_compiler_directives_text
       ?on_compiler_directive:(Option.map spit_compdir on_compiler_directive)
   in
-  match tail with                       (* fold on the last line upon exit... *)
-  | [] | { payload = Eof; _ } :: _ -> acc (* ... if non-empty *)
-  | _ -> f last_lnum tail acc
+  let acc =
+    match tail with                     (* fold on the last line upon exit... *)
+    | [] | { payload = Eof; _ } :: _ -> acc (* ... if non-empty *)
+    | _ -> f last_lnum tail acc
+  in
+  match on_comments with
+  | None -> acc
+  | Some f -> f (List.rev (rev_comments pl)) acc
 
 let print_lines ~dialect ?skip_compiler_directives_text ppf pl =
   fold_lines ~dialect ?skip_compiler_directives_text pl ()

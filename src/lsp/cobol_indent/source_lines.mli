@@ -22,6 +22,15 @@ type word =
                                  (e.g, continued alphanumeric literal) *)
   }
 
+(** Comment, with the byte offset in the line where it starts (on its marker,
+    or the indicator of a comment line). *)
+type comment =
+  {
+    comment_offset: int;
+    comment_kind: [`Line | `Floating];
+    comment_text: string;                     (** including the marker *)
+  }
+
 type line =
   {
     lnum: int;                                                 (** 1-based *)
@@ -29,6 +38,7 @@ type line =
     format: Cobol_preproc.Src_format.any;    (** source format of the line *)
     words: word list;   (** words that start on the line, in order; empty for
                             blank, comment, and debugging lines *)
+    comments: comment list;        (** comments that start on the line *)
     continued: bool;    (** the line continues a previous line: some word
                             that starts on a previous line ends on, or spans,
                             this line, or the line has a continuation

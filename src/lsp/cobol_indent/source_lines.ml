@@ -22,12 +22,20 @@ type word =
     end_offset: int option;
   }
 
+type comment =
+  {
+    comment_offset: int;
+    comment_kind: [`Line | `Floating];
+    comment_text: string;
+  }
+
 type line =
   {
     lnum: int;
     text: string;
     format: SF.any;
     words: word list;
+    comments: comment list;
     continued: bool;
     continues: bool;
   }
@@ -80,6 +88,7 @@ let split_lines contents =
 type acc_line =
   {
     mutable rev_words: word list;
+    mutable rev_comments: comment list;
     mutable is_continued: bool;
     mutable line_format: SF.any option;
   }
@@ -92,7 +101,8 @@ let scan ~(options: Cobol_preproc.Options.preproc_options) ~filename contents =
   let nlines = Array.length texts in
   let acc =
     Array.init nlines
-      (fun _ -> { rev_words = []; is_continued = false; line_format = None })
+      (fun _ -> { rev_words = []; rev_comments = []; is_continued = false;
+                  line_format = None })
   in
   let valid l = 1 <= l && l <= nlines in
   let add_word w =
@@ -126,6 +136,19 @@ let scan ~(options: Cobol_preproc.Options.preproc_options) ~filename contents =
       ~src_options:Cobol_preproc.Src_options.{ tab_stops; mf_comments }
       ~dialect:(Cobol_config.dialect config)
       ~on_change_of_source_format:(fun sf (l, changes) -> l, (l, sf) :: changes)
+      ~on_comments:begin fun comments res ->
+        List.iter begin fun Cobol_preproc.Text.{ comment_loc = (s, _);
+                                                  comment_kind;
+                                                  comment_contents } ->
+          if valid s.pos_lnum then
+            let a = acc.(s.pos_lnum - 1) in
+            a.rev_comments <- { comment_offset = s.pos_cnum - s.pos_bol;
+                                comment_kind;
+                                comment_text = comment_contents }
+                              :: a.rev_comments
+        end comments;
+        res
+      end
       ~f:begin fun l text (_, changes) ->
         List.iter begin fun w -> match ~&w with
           | Cobol_preproc.Text.Eof -> ()
@@ -150,6 +173,7 @@ let scan ~(options: Cobol_preproc.Options.preproc_options) ~filename contents =
       Option.iter (fun sf -> format := sf) a.line_format;
       let words = List.rev a.rev_words in
       { lnum = i + 1; text; format = !format; words;
+        comments = List.rev a.rev_comments;
         continued = a.is_continued;
         continues = List.exists (fun w -> w.end_offset = None) words }
     end texts

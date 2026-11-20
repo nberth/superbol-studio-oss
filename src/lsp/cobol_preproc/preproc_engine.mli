@@ -113,6 +113,10 @@ val lex_file
     text of compiler directives from being fed to [f].  If given,
     [on_compiler_directive] is called as if the text had been fed to [f].
 
+    When given, [on_comments] is called once, {e after} all lines have been fed
+    to [f], with all the comments of [input] (comment lines, and floating
+    comments), in order.
+
     Diagnostics resulting from lexing and parsing the input are attached to the
     returned accumulated value. *)
 val fold_source_lines
@@ -124,6 +128,7 @@ val fold_source_lines
   -> ?skip_compiler_directives_text: bool
   -> ?on_compiler_directive
      : (int -> Preproc_directives.compiler_directive with_loc -> 'a -> 'a)
+  -> ?on_comments: (Text.comments -> 'a -> 'a)
   -> f:(int -> Text.text -> 'a -> 'a)
   -> Src_input.t
   -> 'a
