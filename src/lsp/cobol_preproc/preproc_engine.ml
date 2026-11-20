@@ -82,6 +82,7 @@ let rev_comments ({ reader; persist; _ } as lp) =
   | Some f -> StringMap.add f rev_comments map
   | None -> map
 let rev_ignored { reader; _ } = Src_reader.rev_ignored reader
+let rev_debug_lines { reader; _ } = Src_reader.rev_debug_lines reader
 
 let bind_78_constant lp ~loc const_name (lit: Cobol_ptree.literal with_loc) =
   let[@local] define value errors =

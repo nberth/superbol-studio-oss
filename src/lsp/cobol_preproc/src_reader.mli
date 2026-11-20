@@ -35,6 +35,7 @@ val platform: t -> Cobol_common.Platform.TYPES.platform
 val source_format: t -> Src_format.any
 val rev_comments: t -> Text.comments
 val rev_ignored: t -> lexloc list
+val rev_debug_lines: t -> Text.debug_lines
 val rev_newline_cnums: t -> int list
 val next_chunk: t -> t * Text.t
 

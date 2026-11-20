@@ -378,45 +378,7 @@ run_fundamental.at-7521-prog.cob:13.11-13.22:
 >> Error: Invalid syntax
 
 Considering: import/gnucobol/tests/testsuite.src/run_fundamental.at:7544:0
-run_fundamental.at-7544-prog.cob:9.6-9.38:
-   6          PROCEDURE        DIVISION.
-   7                DISPLAY "OK" NO ADVANCING
-   8                END-DISPLAY.
-   9 >       >>D    DISPLAY "KO" NO ADVANCING
-----         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  10         >>D    END-DISPLAY.
-  11                STOP RUN.
->> Error: Invalid >>D compiler directive
-
-run_fundamental.at-7544-prog.cob:10.6-10.25:
-   7                DISPLAY "OK" NO ADVANCING
-   8                END-DISPLAY.
-   9         >>D    DISPLAY "KO" NO ADVANCING
-  10 >       >>D    END-DISPLAY.
-----         ^^^^^^^^^^^^^^^^^^^
-  11                STOP RUN.
->> Error: Invalid >>D compiler directive
-
 Considering: import/gnucobol/tests/testsuite.src/run_fundamental.at:7567:0
-run_fundamental.at-7567-prog.cob:9.6-9.38:
-   6          PROCEDURE        DIVISION.
-   7                DISPLAY "OK" NO ADVANCING
-   8                END-DISPLAY.
-   9 >       >>D    DISPLAY "KO" NO ADVANCING
-----         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  10         >>D    END-DISPLAY.
-  11                STOP RUN.
->> Error: Invalid >>D compiler directive
-
-run_fundamental.at-7567-prog.cob:10.6-10.25:
-   7                DISPLAY "OK" NO ADVANCING
-   8                END-DISPLAY.
-   9         >>D    DISPLAY "KO" NO ADVANCING
-  10 >       >>D    END-DISPLAY.
-----         ^^^^^^^^^^^^^^^^^^^
-  11                STOP RUN.
->> Error: Invalid >>D compiler directive
-
 Considering: import/gnucobol/tests/testsuite.src/run_fundamental.at:7604:0
 Considering: import/gnucobol/tests/testsuite.src/run_fundamental.at:7649:0
 Considering: import/gnucobol/tests/testsuite.src/run_fundamental.at:7694:0

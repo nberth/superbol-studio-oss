@@ -47,6 +47,12 @@ val rev_comments: preprocessor -> Text.comments StringMap.t
     given to [pp]. *)
 val rev_ignored: preprocessor -> lexloc list
 
+(** [rev_debug_lines pp] lists the debugging lines (with a [D] indicator, or a
+    [>>D] marker) that were not compiled when reading the file given to [pp]
+    (i.e, all of them, as debugging lines are not activated), in reverse
+    order. *)
+val rev_debug_lines: preprocessor -> Text.debug_lines
+
 val next_chunk: preprocessor -> Text.text * preprocessor
 
 (** {2 Environment access and manipulation} *)

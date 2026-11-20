@@ -252,6 +252,13 @@ let cdir_word =
 let mf_cdir_word =
   ('$' ' '* cdir_word_suffix)
 
+(* Marker of floating debugging lines (ISO/IEC 1989:2002); longer compiler
+   directive words like `>>DEFINE' take precedence. *)
+let floating_debug_marker =
+  (">>" ['D' 'd'] ' ')
+let empty_floating_debug_line =
+  (">>" ['D' 'd'] (newline | eof))
+
 (* Fixed format *)
 
 rule fixed_line state
@@ -300,9 +307,9 @@ and fixed_indicator state
       {
         comment_line marker state lexbuf
       }
-  | ['d' 'D']
+  | (['d' 'D'] as marker)
       {
-        fixed_debug_line state lexbuf
+        fixed_debug_line (String.make 1 marker) state lexbuf
       }
   | (_ # ['\n' '\r'] as c)                                (* unknown indicator *)
       {
@@ -346,7 +353,7 @@ and xopen_line state                                     (* X/Open free-form  *)
   = parse                            (* (note no continuation line indicator) *)
   | "D "
       {
-        fixed_debug_line state lexbuf
+        fixed_debug_line "D " state lexbuf
       }
   | epsilon
       {
@@ -354,9 +361,9 @@ and xopen_line state                                     (* X/Open free-form  *)
       }
 and crt_line state                                  (* ICOBOL Free-form (CRT) *)
   = parse
-  | ['D' 'd']
+  | (['D' 'd'] as marker)
       {
-        fixed_debug_line state lexbuf
+        fixed_debug_line (String.make 1 marker) state lexbuf
       }
   | '-'                                                  (* continuation line *)
       {
@@ -370,7 +377,7 @@ and acutrm_line state   (* ACUCOBOL-GT Terminal (compat with VAX COBOL term.) *)
   = parse
   | "\\D"
       {
-        fixed_debug_line state lexbuf
+        fixed_debug_line "\\D" state lexbuf
       }
   | '-'                                                  (* continuation line *)
       {
@@ -385,6 +392,17 @@ and xopen_or_crt_or_acutrm_followup state
   | ('$' as marker)
       {
         fixed_mf_cdir_line (String.make 1 marker) state lexbuf
+      }
+  | (floating_debug_marker as marker)
+      {
+        fixed_floating_debug_line marker state lexbuf
+      }
+  | empty_floating_debug_line
+      {
+        let state = Src_lexing.flush_continued state in
+        if Src_lexing.allow_debug state
+        then Src_lexing.new_line state lexbuf
+        else Src_lexing.debug_line ~marker:"" ~kind:`Floating state lexbuf
       }
   | cdir_word
       {
@@ -420,9 +438,9 @@ and cobolx_line state                                 (* COBOLX format (GCOS) *)
       {
         comment_line marker state lexbuf
       }
-  | ['D' 'd']
+  | (['D' 'd'] as marker)
       {
-        fixed_debug_line state lexbuf
+        fixed_debug_line (String.make 1 marker) state lexbuf
       }
   | (_#['\n' '\r'] as c)                                 (* unknown indicator *)
       {
@@ -437,14 +455,29 @@ and cobolx_line state                                 (* COBOLX format (GCOS) *)
       {
         newline_or_eof state lexbuf
       }
-and fixed_debug_line state
+and fixed_debug_line marker state
   = parse
   | epsilon
       {
         let state = Src_lexing.flush_continued state in
         if Src_lexing.allow_debug state
         then fixed_nominal_line state lexbuf
-        else gobble_line state lexbuf
+        else debug_line_text marker `Indicator state lexbuf
+      }
+and fixed_floating_debug_line marker state       (* just read `>>D' marker *)
+  = parse
+  | epsilon
+      {
+        let state = Src_lexing.flush_continued state in
+        if Src_lexing.allow_debug state
+        then fixed_nominal state lexbuf
+        else debug_line_text marker `Floating state lexbuf
+      }
+and debug_line_text marker kind state
+  = parse
+  | (nnl* (newline | eof))
+      {
+        Src_lexing.debug_line ~marker ~kind state lexbuf
       }
 and fixed_nominal_line state
   = parse
@@ -455,6 +488,17 @@ and fixed_nominal_line state
   | blanks
       {
         fixed_nominal_line state lexbuf
+      }
+  | (floating_debug_marker as marker)
+      {
+        fixed_floating_debug_line marker state lexbuf
+      }
+  | empty_floating_debug_line
+      {
+        let state = Src_lexing.flush_continued state in
+        if Src_lexing.allow_debug state
+        then Src_lexing.new_line state lexbuf
+        else Src_lexing.debug_line ~marker:"" ~kind:`Floating state lexbuf
       }
   | (separator as char) (blanks*)
       {
@@ -661,6 +705,17 @@ and free_line state
       {
         Src_lexing.tab ~k:free_line state lexbuf
       }
+  | (floating_debug_marker as marker)
+      {
+        free_floating_debug_line marker state lexbuf
+      }
+  | empty_floating_debug_line
+      {
+        let state = Src_lexing.flush_continued ~force:true state in
+        if Src_lexing.allow_debug state
+        then Src_lexing.new_line state lexbuf
+        else Src_lexing.debug_line ~marker:"" ~kind:`Floating state lexbuf
+      }
   | (cdir_word | mf_cdir_word)
       {
         Src_lexing.cdir_word' ~k:free_nominal
@@ -679,6 +734,21 @@ and free_line state
   | epsilon
       {
         free_nominal state lexbuf
+      }
+and free_floating_debug_line marker state        (* just read `>>D' marker *)
+  = parse
+  | epsilon
+      {
+        let state = Src_lexing.flush_continued ~force:true state in
+        if Src_lexing.allow_debug state
+        then free_nominal state lexbuf
+        else free_debug_line_text marker state lexbuf
+      }
+and free_debug_line_text marker state
+  = parse
+  | (nnl* (newline | eof))
+      {
+        Src_lexing.debug_line ~marker ~kind:`Floating state lexbuf
       }
 and free_nominal state
   = parse
