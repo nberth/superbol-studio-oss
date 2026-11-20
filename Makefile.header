@@ -189,6 +189,13 @@ test-vscode-debug-promote:
 	  cmp -s "$$output" "$$expected" || { cp "$$output" "$$expected"; echo "Promoted $$expected"; }; \
 	done
 
+# Checks conversions between source formats against GnuCOBOL (needs `cobc')
+.PHONY: test-format-conversions
+test-format-conversions:
+	${DUNE} build ${DUNE_ARGS} src/lsp/superbol-free/main.exe
+	@echo -n "cobc   : "; command -v cobc
+	bash scripts/check-format-conversions.sh
+
 MASTER_REMOTE ?= origin
 
 .PHONY: build-master

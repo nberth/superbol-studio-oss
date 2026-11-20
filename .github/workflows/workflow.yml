@@ -265,6 +265,10 @@ jobs:
         # Whether the tests passed or failed
         if: ${{ always() && steps.vscode-test-cache.outputs.cache-hit != 'true' && (steps.debugger-tests.outcome == 'success' || steps.debugger-tests.outcome == 'failure') }}
 
+      # Checks of conversions between source formats, with GnuCOBOL 3.x
+      - run: make test-format-conversions
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.focus == 'native' }}
+
       # - name: Check whether source is well formatted
       #   run: make fmt
       #   continue-on-error: true
