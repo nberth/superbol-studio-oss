@@ -105,6 +105,29 @@ let display state fun_name tokens =
 
   ()
 
+(* [perform_n_times tokens] holds if [tokens] (that follow a PERFORM) start
+   with an identifier or integer that is immediately followed by TIMES, i.e,
+   the PERFORM is inline.  The identifier may be qualified (with OF or IN) and
+   subscripted, as in [PERFORM N OF R (2) TIMES]; it is not followed by
+   another word, as in the out-of-line [PERFORM PARA N TIMES]. *)
+let perform_n_times tokens =
+  let rec skip_parens depth = function
+    | (LPAREN, _) :: tokens -> skip_parens (depth + 1) tokens
+    | (RPAREN, _) :: tokens when depth = 1 -> after_identifier tokens
+    | (RPAREN, _) :: tokens -> skip_parens (depth - 1) tokens
+    | _ :: tokens -> skip_parens depth tokens
+    | [] -> false
+  and identifier = function
+    | ((IDENT _ | INTEGER _), _) :: tokens -> after_identifier tokens
+    | _ -> false
+  and after_identifier = function
+    | (IDENT ("OF" | "IN"), _) :: tokens -> identifier tokens
+    | (LPAREN, _) :: tokens -> skip_parens 1 tokens
+    | (TIMES, _) :: _ -> true
+    | _ -> false
+  in
+  identifier tokens
+
 let indent_tokens ~config tokens =
 
   let state = {
@@ -954,8 +977,8 @@ let indent_tokens ~config tokens =
 
 
     | (PERFORM as token, e) ::
-      ( ( ((IDENT _ | INTEGER _), _) :: (token2, _) :: _ ) as tokens )
-      when token2 <> TIMES ->
+      ( ( ((IDENT _ | INTEGER _), _) :: _ :: _ ) as tokens )
+      when not (perform_n_times tokens) ->
 
       if verbose then
         Printf.eprintf "[[PERFORM par]]\n%!";
@@ -1136,6 +1159,13 @@ let indent_tokens ~config tokens =
     (* [WHEN ... block] can happen in EVALUATE, SEARCH *)
     | (WHEN as token, e) :: tokens ->
       continue_stmts div [ END_EVALUATE ; END_SEARCH ; END_PERFORM ] ;
+      (* statements of the block are one level below [WHEN], even after an
+         [AT END] block of a SEARCH, which is one level below its phrase *)
+      begin match div.proc_stack with
+        | stmt :: _ ->
+          stmt.stmt_inner_indent <- Some (stmt.stmt_indent + config.inner_offset)
+        | [] -> ()
+      end;
       set_token_indent token e;
       iter_proc div tokens;
 

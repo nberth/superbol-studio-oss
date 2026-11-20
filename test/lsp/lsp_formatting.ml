@@ -675,3 +675,57 @@ let%expect_test "formatting-request-xopen" =
     * a comment|
         DISPLAY "HELLO"|
         STOP RUN.| |}]
+
+let doc = {cobol|
+       PROCEDURE DIVISION.
+       PERFORM N OF R (2) TIMES
+       DISPLAY "INLINE"
+       END-PERFORM
+       PERFORM P OF S 3 TIMES
+       DISPLAY "OUT-OF-LINE"
+       STOP RUN.
+  |cobol};;
+
+let%expect_test "formatting-request-perform-n-times" =
+  let doc', end_with_postproc = format_doc doc in
+  begin match doc' with
+  | None -> Pretty.out "formatting error"
+  | Some doc' -> Pretty.out "%s" doc'
+  end;
+  end_with_postproc [%expect.output];
+  [%expect {|
+    {"params":{"diagnostics":[{"message":"Unknown procedure-name 'S'","range":{"end":{"character":21,"line":5},"start":{"character":20,"line":5}},"severity":1},{"message":"Unknown procedure-name 'P IN S'","range":{"end":{"character":21,"line":5},"start":{"character":15,"line":5}},"severity":1}],"uri":"file://__rootdir__/prog.cob"},"method":"textDocument/publishDiagnostics","jsonrpc":"2.0"}
+    PROCEDURE DIVISION.
+        PERFORM N OF R (2) TIMES
+           DISPLAY "INLINE"
+        END-PERFORM
+        PERFORM P OF S 3 TIMES
+        DISPLAY "OUT-OF-LINE"
+        STOP RUN. |}]
+
+let doc = {cobol|
+       PROCEDURE DIVISION.
+       SEARCH D
+       AT END DISPLAY "NOT FOUND"
+       WHEN D (1) = "X"
+       DISPLAY "FOUND"
+       END-SEARCH
+       STOP RUN.
+  |cobol};;
+
+let%expect_test "formatting-request-search" =
+  let doc', end_with_postproc = format_doc doc in
+  begin match doc' with
+  | None -> Pretty.out "formatting error"
+  | Some doc' -> Pretty.out "%s" doc'
+  end;
+  end_with_postproc [%expect.output];
+  [%expect {|
+    {"params":{"diagnostics":[],"uri":"file://__rootdir__/prog.cob"},"method":"textDocument/publishDiagnostics","jsonrpc":"2.0"}
+    PROCEDURE DIVISION.
+        SEARCH D
+           AT END DISPLAY "NOT FOUND"
+        WHEN D (1) = "X"
+           DISPLAY "FOUND"
+        END-SEARCH
+        STOP RUN. |}]
