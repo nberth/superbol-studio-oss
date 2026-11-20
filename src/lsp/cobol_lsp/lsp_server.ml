@@ -359,14 +359,35 @@ let save_project_caches { params; docs; _ } =
   Lsp_project_cache.save ~params docs
 
 
+(** [use_preset_client_config_for ~project registry] configures [project]
+    with the client settings of the configuration of the server, when it does
+    not request them from a client. *)
+let use_preset_client_config_for ~project registry =
+  let config = registry.params.config in
+  Option.iter (fun enc -> Lsp_project_cache.set_file_encoding project (Some enc))
+    config.client_file_encoding;
+  begin match config.client_cobol_settings with
+    | Some assoc when not (Sys.file_exists project.Lsp_project.config_filename) ->
+        ignore (Lsp_project.update_project_config assoc project)
+    | Some _ | None ->
+        ()
+  end;
+  now project registry
+
+
 let load_project_cache ~rootdir
     ({ params = { config = { lsp_project_layout = layout; _ }; _ } as params;
        docs = _old_docs; _ } as registry) =
   match Lsp_project_cache.load ~params ~layout ~rootdir with
   | None ->
       registry
-  | Some project ->
+  | Some project when params.config.enable_client_configs ->
       add_project project registry
+  | Some project ->
+      (* Projects restored from a cache get the preset client settings as
+         well. *)
+      ignore_promise_result @@
+      use_preset_client_config_for ~project (add_project project registry)
 
 
 (** {2 Documents} *)
@@ -533,6 +554,16 @@ let request_n_use_client_config_for ~project
             use_client_config_for ~project configs registry
       end
   end
+
+
+(** [configure_project ~project registry] retrieves the client settings for
+    [project], from the client if the server requests them, or else from the
+    configuration of the server. *)
+let configure_project ~project ?silence_ignored_settings_warning registry =
+  if registry.params.config.enable_client_configs
+  then request_n_use_client_config_for ~project registry
+      ?silence_ignored_settings_warning
+  else use_preset_client_config_for ~project registry
 
 
 let cobol_settings_in (changes: Yojson.Safe.t option) =
@@ -761,12 +792,7 @@ let create_or_retrieve_project_promise ~rootdir registry =    (* from rootdir *)
     let layout = registry.params.config.lsp_project_layout in
     let project = Lsp_project.for_ ~rootdir ~layout in
     add_project project registry |>
-    if registry.params.config.enable_client_configs
-    then
-      request_n_use_client_config_for ~project
-        ~silence_ignored_settings_warning:true
-    else
-      now project
+    configure_project ~project ~silence_ignored_settings_warning:true
 
 
 let create_or_retrieve_doc_project_promise ~uri registry =    (* from doc uri *)
@@ -829,8 +855,7 @@ let load_project_in ~dir registry =
     load_project_cache ~rootdir:(Lsp_project.rootdir project) registry
   in
   ignore_promise_result @@                   (* retrieve client configuration *)
-  request_n_use_client_config_for ~project registry
-    ~silence_ignored_settings_warning:true
+  configure_project ~project registry ~silence_ignored_settings_warning:true
 
 
 let add_workspace_folders folders registry =

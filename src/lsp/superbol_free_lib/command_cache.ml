@@ -278,28 +278,27 @@ let trim_cmd =
                          given as field $(b,reclaimed), along with the totals \
                          that $(b,cache status --json) gives." ]]
 
-let client_settings_of_string s =
-  match Yojson.Safe.from_string s with
-  | `Assoc assoc -> assoc
-  | `Null -> []
-  | _ | exception Yojson.Json_error _ ->
-      Cobol_common.fatal "Expected a JSON object: %s" s
-
 let analyze_cmd =
   let ppf = ref Fmt.stderr
-  and storage_directory = ref None and client_settings = ref None
+  and storage_directory = ref None
   and error_status = ref true and show_diagnostics = ref true
   and for_lsp = ref true in
   let common, common_args = Common_args.get () in
   let parallel, parallel_args = Parallel_batches.args () in
   let project_setup, project_args = Project_args.get () in
+  let client_settings, client_settings_args =
+    Project_args.client_settings () ~doc:
+      "Configure projects that have no `superbol.toml' file as an LSP server \
+       does when its client sends these settings of the `superbol.cobol' \
+       section (e.g. `{\"dialect\": \"ibm\"}')"
+  in
   let input_files, input_args =
     Input_files.get () ~docv:"FILE" ~doc:"Cobol file to analyze" in
   let setup () =
     project_setup () ~setup:
       (Project_commands.lsp_like_setup ()
          ?storage_directory:!storage_directory
-         ?client_settings:!client_settings)
+         ?client_settings:(client_settings ()))
   in
   let analyze files =
     Project_commands.analyze_n_report (common ()) ~for_lsp:!for_lsp
@@ -331,14 +330,7 @@ let analyze_cmd =
              EZCMD.info ~docv:"DIR"
                "Use the caches that an LSP server started with the same \
                 option uses";
-             ["client-settings"],
-             Arg.String begin fun s ->
-               client_settings := Some (client_settings_of_string s)
-             end,
-             EZCMD.info ~docv:"JSON"
-               "Configure projects that have no `superbol.toml' file as an LSP \
-                server does when its client sends these settings of the \
-                `superbol.cobol' section (e.g. `{\"dialect\": \"ibm\"}')" ]
+           ] @ client_settings_args
   in
   EZCMD.sub "cache analyze"
     (fun () ->

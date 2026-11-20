@@ -36,6 +36,16 @@ type lsp_config =
     enable_client_configs: bool;
     (** Enable requests for configuration settings to the client. *)
 
+    client_cobol_settings: (string * Yojson.Safe.t) list option;
+    (** When [enable_client_configs] does not hold (e.g. there is no client):
+        settings of the [superbol.cobol] section to configure projects that
+        have no configuration file with, as if a client sent them. *)
+
+    client_file_encoding: Cobol_common.Text_encoding.t option;
+    (** When [enable_client_configs] does not hold: encoding to decode the
+        files of every project with, as if a client sent this value of its
+        [files.encoding] setting. *)
+
     force_syntax_diagnostics: bool;
     (** Force reporting of syntax and pre-processor-related diagnostics (for
         dialects other that COBOL85, for which they are always enabled). *)

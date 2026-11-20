@@ -20,3 +20,13 @@ val get
   : unit
   -> (?setup:Project_commands.setup -> unit -> Project_commands.setup)
      * Ezcmd.V2.EZCMD.TYPES.arg_list
+
+(** [client_settings ~doc ()] is the [--client-settings] argument, for
+    settings of the [superbol.cobol] section of an LSP client given as a JSON
+    object (described with [doc]), along with a function that gives its value
+    once arguments are parsed. *)
+val client_settings
+  : doc:string
+  -> unit
+  -> (unit -> (string * Yojson.Safe.t) list option)
+     * Ezcmd.V2.EZCMD.TYPES.arg_list

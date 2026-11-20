@@ -52,9 +52,12 @@ let server_args () =
        of a \"_superbol\" storage directory at the root of project trees.";
   ]
 
-(** [lsp_config ~enable_client_configs ~verbose ?cache_pruning_policy options]
-    is the configuration of a server run with [options]. *)
+(** [lsp_config ~enable_client_configs ~verbose ?client_cobol_settings
+    ?client_file_encoding ?cache_pruning_policy options] is the configuration
+    of a server run with [options].  Client settings only apply when
+    [enable_client_configs] does not hold (see {!Cobol_lsp.Types.lsp_config}). *)
 let lsp_config ~enable_client_configs ~verbose
+    ?client_cobol_settings ?client_file_encoding
     ?(cache_pruning_policy = Superbol_cache.Config.pruning_policy ())
     { enable_caching; force_syntax_diagnostics; storage_directory } =
   let setup =
@@ -66,6 +69,8 @@ let lsp_config ~enable_client_configs ~verbose
     lsp_cache_pruning_policy = cache_pruning_policy;
     lsp_cache_verbose = verbose;
     enable_client_configs;
+    client_cobol_settings;
+    client_file_encoding;
     force_syntax_diagnostics;
   }
 

@@ -48,6 +48,7 @@ let lsp_cache_for ~rootdir =
 
 let server ?(bounds = Superbol_cache.Types.Never)
     ?(with_semantic_tokens = false) ?(enable_client_configs = false)
+    ?client_cobol_settings ?client_file_encoding
     ?(workspace_folders = []) () =
   Cobol_common.Platform.copy
     ~dst:LSP.Platform.record ~src:Superbol_platform.record;
@@ -57,6 +58,8 @@ let server ?(bounds = Superbol_cache.Types.Never)
                          lsp_cache_verbose = true;
                          lsp_cache_pruning_policy = bounds;
                          enable_client_configs;
+                         client_cobol_settings;
+                         client_file_encoding;
                          force_syntax_diagnostics = true };
               root_uri = None;
               workspace_folders;
@@ -437,6 +440,36 @@ let%expect_test "an analysis stored by the CLI with client settings is not \
   [%expect {| analyzed by the CLI |}];
   open_with_client_settings ~projdir []
     ~output:(fun () -> [%expect.output]);
+  report [%expect.output];
+  cleanup projdir;
+  [%expect {| parsed afresh |}];;
+
+(** Opens [prog.cob] with a fresh server that has no client, and is given
+    [settings] instead (as `superbol mcp --client-settings' does), with the
+    project as workspace folder. *)
+let open_with_preset_settings ~projdir settings =
+  let server =
+    server () ?client_cobol_settings:settings
+      ~workspace_folders:[Lsp.Uri.of_path projdir]
+  in
+  ignore (open_doc server ~projdir "prog.cob")
+
+let%expect_test "an analysis stored by the CLI with client settings is \
+                 restored by a server without client given the same" =
+  let projdir = setup_unconfigured () in
+  cli_analyze_with_settings ~projdir client_settings;
+  [%expect {| analyzed by the CLI |}];
+  open_with_preset_settings ~projdir (Some client_settings);
+  report [%expect.output];
+  cleanup projdir;
+  [%expect {| restored from cache |}];;
+
+let%expect_test "an analysis stored by the CLI with client settings is not \
+                 restored by a server without client nor settings" =
+  let projdir = setup_unconfigured () in
+  cli_analyze_with_settings ~projdir client_settings;
+  [%expect {| analyzed by the CLI |}];
+  open_with_preset_settings ~projdir None;
   report [%expect.output];
   cleanup projdir;
   [%expect {| parsed afresh |}];;

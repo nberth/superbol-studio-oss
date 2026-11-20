@@ -49,3 +49,20 @@ let get () =
     }
   in
   get, args
+
+(* For [--client-settings]. *)
+let client_settings_of_string s =
+  match Yojson.Safe.from_string s with
+  | `Assoc assoc -> assoc
+  | `Null -> []
+  | _ | exception Yojson.Json_error _ ->
+      Cobol_common.fatal "Expected a JSON object: %s" s
+
+let client_settings ~doc () =
+  let client_settings = ref None in
+  (fun () -> !client_settings),
+  [ ["client-settings"],
+    Arg.String begin fun s ->
+      client_settings := Some (client_settings_of_string s)
+    end,
+    EZCMD.info ~docv:"JSON" doc ]

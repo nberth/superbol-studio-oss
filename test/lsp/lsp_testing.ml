@@ -51,6 +51,8 @@ let make_server ?(with_semantic_tokens = false) () =
                          lsp_cache_verbose = false;
                          lsp_cache_pruning_policy = Never;
                          enable_client_configs = false;
+                         client_cobol_settings = None;
+                         client_file_encoding = None;
                          force_syntax_diagnostics = true };
               root_uri = None;
               workspace_folders = [];
